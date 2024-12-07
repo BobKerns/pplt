@@ -1,0 +1,21 @@
+# Custom Dictionary Words
+contine
+direnv
+envrc
+hline
+islice
+itertools
+multiplot
+myplot
+pecentage
+plotext
+plotsize
+pltext
+timedelta
+venv
+xlabels
+xticks
+ylabels
+ylim
+yrange
+yticks
