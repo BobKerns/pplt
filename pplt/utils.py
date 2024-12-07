@@ -8,7 +8,7 @@ from math import floor, ceil
 from collections.abc import Iterable, Iterator, Sequence, Collection
 from typing import Optional, Literal
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import plotext as plt
 
@@ -23,12 +23,14 @@ def monthly_rate(annual: float):
     rate = (1 + annual) ** (1/12.0)
     return (rate - 1)
 
+
 def monthly_pct(annual: float):
     """
     Convert annual pecentage rate to monthly. This is NOT the same
     as dividing by 12.
     """
     return 100 * monthly_rate(annual / 100)
+
 
 def daily_rate(annual: float):
     """
@@ -38,12 +40,14 @@ def daily_rate(annual: float):
     rate = (1 + annual) ** (1/365.25)
     return (rate - 1)
 
+
 def daily_pct(annual: float):
     """
     Convert annual pecentage rate to daily. This is NOT the same
     as dividing by 365.25
     """
     return 100 * daily_rate(annual / 100)
+
 
 def quarterly_rate(annual: float):
     """
@@ -53,12 +57,14 @@ def quarterly_rate(annual: float):
     rate = (1 + annual) ** 0.25
     return (rate - 1)
 
+
 def quarterly_pct(annual: float):
     """
     Convert annual pecentage rate to quarterly. This is NOT the same
     as dividing by 4.
     """
     return 100 * quarterly_rate(annual / 100)
+
 
 def rate_of_return(start_date: datetime|str, start_value: float,
                    end_date: datetime|str, end_value: float):
@@ -92,6 +98,7 @@ def rate_of_return(start_date: datetime|str, start_value: float,
     daily = (1 + frac) ** (1.0 / days)
     annual = daily ** 365.25
     return annual - 1
+
 
 def pct_return(start_date: datetime|str, start_value: float,
                end_date: datetime|str, end_value: float):
@@ -138,6 +145,7 @@ def days_per_month(date: datetime|int):
         days += 1
     return days
 
+
 def next_month():
     """
     RETURNS
@@ -148,6 +156,7 @@ def next_month():
     today = datetime.today()
     today - today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     return today + timedelta(days=days_per_month(today))
+
 
 def months(start: datetime=next_month()) -> Iterable[datetime]:
     '''
@@ -163,6 +172,7 @@ def months(start: datetime=next_month()) -> Iterable[datetime]:
         yield date
         date = date + timedelta(days=days_per_month(date))
 
+
 def months_str(start: datetime=next_month(),
                end: Optional[int]=None,
                stride: int=1):
@@ -175,6 +185,7 @@ def months_str(start: datetime=next_month(),
     if end is None:
         return series
     return islice(series, 0, end, stride)
+
 
 def choose_stride(ymin: float, ymax: float):
     """
@@ -205,6 +216,7 @@ def choose_stride(ymin: float, ymax: float):
         r = yrange / 10
     return r
 
+
 type ColorCode = Literal[
     'default',
     'black',     'white',
@@ -228,6 +240,7 @@ def color_series():
     "Codes for a nice-looking series of colors."
     return (c % 256 for c in count(112, 13))
 
+
 @dataclass
 class SubPlot:
     '''
@@ -236,17 +249,20 @@ class SubPlot:
     x: int
     y: int
     series: Sequence[Iterable[float]]
-    start: datetime = field(default_factory=next_month)
+    start: datetime|None = None
+    end: int|str|datetime = 12
     months: int=0
     title: Optional[str] = None
     labels: Iterable[str] = ()
     colors: Iterable[Color] = ()
     ylim: tuple[float|None,...] = ()
 
+
 def subplot(x: int, # Position of plot
             y: int,
             *series: Sequence[Iterable[float]],
             start: Optional[datetime]=None,
+            end: Optional[int|str|datetime]=None,
             title: Optional[str]=None,
             labels: Iterable[str]=(),
             colors: Iterable[Color] = (),
@@ -265,6 +281,9 @@ def subplot(x: int, # Position of plot
         The data series to plot.
     start: Optional[datetime]
         Starting date. Overrides the default from `multiplot()`.
+    end: Optional[int|str|datetime]
+        Ending date, or Number of months to plot.
+        Overrides the default from `multiplot()`.
     title: Optional[str]
         Title of the subplot.
     labels: Iterable[str]
@@ -282,18 +301,26 @@ def subplot(x: int, # Position of plot
     return SubPlot(
         x=x, y=y,
         start=start,
+        end=end,
         title=title,
         labels=labels,
         colors=colors,
         ylim=ylim,
         series=series,
     )
+    
 
 def take(n: int, x: Iterator[str]) -> list[str]:
     "Take n from an infinite iterator."
     return [next(x) for i in range(n)]
 
+
 def parse_month(date: str|datetime):
+    '''
+    Parse a date string or datetime object into a month.
+    
+    Strings should be in the form 'yy/mm'.
+    '''
     match date:
         case str():
             return datetime.strptime(date, "%y/%m")
@@ -301,15 +328,25 @@ def parse_month(date: str|datetime):
             return date.replace(
                 day=1, hour=0, minute=0, second=0, microsecond=0)
         case _:
-            raise ValueError('Invalid date format.')
+            raise ValueError(f'Invalid date: {date}.')
+
     
 def unparse_month(date: datetime):
+    '''
+    The inverse of `parse_month()`.
+    
+    RETURNS
+    -------
+    date: str
+        A string in the form 'yy/mm'.
+    '''
     return date.strftime('%y/%m') 
 
 
 def dict_join(d: dict[str, Iterable[float]]):
     """
-    Iterate over a dictionary's values in parallel.
+    Iterate over a dictionary's iterable values in parallel,
+    returning an iterator of dictionaries.
     """
     state = {k: iter(v) for k, v in d.items()}
     while True:
@@ -318,7 +355,7 @@ def dict_join(d: dict[str, Iterable[float]]):
 
 def dict_split(joined: Iterator[dict[str, float]]):
     """
-    Split a dictionary of values into separate dictionaries.
+    Split an iterator of dictionaries into a dictionary of iterators.
     """
     peek, main = tee(joined)
     first = next(peek)
@@ -357,6 +394,7 @@ def timeline(start: datetime=next_month(), **kwargs: Iterable[float]):
         'ACCOUNTS': repeat(kwargs),
         **kwargs
     })
+
     
 def restart(timeline: Iterator[dict[str, float]]):
     """
@@ -380,12 +418,13 @@ def restart(timeline: Iterator[dict[str, float]]):
         'START': repeat(start),
         'ACCOUNTS': repeat(accounts),
         **accounts,
-    })  
+    })
+
 
 def multiplot(*subplots: SubPlot,
               title: Optional[str]=None,
               start: datetime=next_month(),
-              months: int=12,
+              end: int|str|datetime=12,
               colors: Iterable[Color] = (),
               figure=plt,
               show: bool=True,
@@ -402,8 +441,9 @@ def multiplot(*subplots: SubPlot,
         Title of the figure.
     start: datetime
         Starting date. Applies to all subplots by default.
-    months: int
-        Number of months to plot. Applies to all subplots by default.
+    end: int|str|datetime
+        End date, or Number of months to plot.
+        Applies to all subplots by default.
     colors: Iterable[Color]
         Colors for the series.
     figure: plt
@@ -426,7 +466,8 @@ def multiplot(*subplots: SubPlot,
         sp_labels = take(len(sp.series), chain(sp.labels, labels))
         sp_colors = take(len(sp.series), chain(sp.colors, colors))
         plt_by_month(*sp.series,
-                    months=sp.months or months,
+                    start=sp.start or start,
+                    end=sp.end or end,
                     title=sp.title,
                     labels=sp_labels,
                     colors=sp_colors,
@@ -438,12 +479,38 @@ def multiplot(*subplots: SubPlot,
     if show and figure is plt:
         plt.show()
         if wait:
-            input('--continue--')
+            input()
+
+
+def parse_end(start: datetime|str, end: int|str|datetime) -> int:
+    """
+    Parse the end date.
+
+    PARAMETERS
+    ----------
+    start: datetime|str
+        Starting date.
+    end: int|str|datetime
+        The ending date, or the number of months to print.
+        
+    RETURNS
+    -------
+    end: int
+        The number of months to show.
+    """
+    start = parse_month(start)
+    match end:
+        case int():
+            return end
+        case datetime()|str():
+            return (parse_month(end) - start).days
+        case _:
+            raise ValueError('Invalid end value.')
 
 
 def plt_by_month(
         *series: Iterable[float],
-        start: datetime=next_month(),
+        start: datetime|str=next_month(),
         time: Iterable[datetime]=(),
         end: datetime|int|str=12,
         title: Optional[str]=None,
@@ -456,7 +523,33 @@ def plt_by_month(
     ):
     """
     Plot a graph by month
+    
+    PARAMETERS
+    ----------
+    series: Iterable[float]
+        The data series to plot.
+    start: datetime|str
+        Starting date.
+    time: Iterable[datetime]
+        The time series.
+    end: datetime|int|str
+        The ending date, or the number of months to print.
+    title: Optional[str]
+        Title of the plot.
+    labels: Iterable[str]
+        Labels for the series.
+    colors: Iterable[Color]
+        Colors for the series.
+    ylim: tuple[float|None,...]
+        Y-axis limits.
+    figure: plt
+        The figure object to plot on.
+    show: bool
+        Whether to show the plot.
+    wait: bool
+        Whether to wait for user input.
     """
+    start = parse_month(start)
     labels = chain(labels, (f'Series-{i}' for i in count(len(labels)+1)))
     colors = chain(colors, color_series())
     if figure is plt:
@@ -468,13 +561,7 @@ def plt_by_month(
     if not time:
         time = months(start=start)
     time = (unparse_month(t) for t in time)
-    match end:
-        case int():
-            pass
-        case datetime()|str():
-            end = (parse_month(end) - start).days
-        case _:
-            raise ValueError('Invalid end value.')
+    end = parse_end(start, end)
     # Copy the time iterator for each usage (series, ticks, labels)
     xticks, *data_x = tee(time, len(series)+1)
     xticks = islice(xticks, 0, end + 1, ceil(end / 10))
@@ -509,11 +596,12 @@ def plt_by_month(
     if show and figure is plt:
         figure.show()
         if wait:
-            #input('--contine--')
             input()
     return None
 
+
 def plt_timeline(timeline: Iterator[dict[str, float]],
+                 end: int|str|datetime=12,
                  title: Optional[str]=None,
                  colors: Iterable[Color]=(),
                  ylim: tuple[float|None,...]=(),
@@ -525,6 +613,30 @@ def plt_timeline(timeline: Iterator[dict[str, float]],
                  ):
     """
     Plot a timeline of values.
+    
+    PARAMETERS
+    ----------
+    timeline: Iterator[dict[str, float]]
+        A timeline of values.
+    end: int|str|datetime
+        The ending date, or the number of months to print.
+    title: Optional[str]
+        Title of the plot.
+    colors: Iterable[Color]
+        Colors for the series.
+    ylim: tuple[float|None,...]
+        Y-axis limits.
+    include: Collection[str]
+        The labels to include.
+    exclude: Collection[str]
+        The labels to exclude.
+    figure: plt
+        The figure object to plot on.
+    show: bool
+        Whether to show the plot.
+    wait: bool
+        Whether to wait for user input.
+    
     """
     values = dict_split(timeline)
     time = values.pop('TIME')
@@ -539,6 +651,7 @@ def plt_timeline(timeline: Iterator[dict[str, float]],
      ]
     plt_by_month(*series,
                time=time,
+               end=end,
                title=title,
                labels=labels,
                colors=colors,
@@ -547,3 +660,62 @@ def plt_timeline(timeline: Iterator[dict[str, float]],
                show=show,
                wait=wait,
                )
+    
+
+def table(timeline: Iterator[dict[str, float]],
+          include: Collection[str]=(),
+          exclude: Collection[str]=(),
+          end: int|str|datetime=12,
+          ):
+    """
+    Print a table of values.
+    
+    PARAMETERS
+    ----------
+    timeline: Iterator[dict[str, float]]
+        A timeline of values.
+    include: Collection[str]
+        The labels to include.
+    exclude: Collection[str]
+        The labels to exclude.
+    end: int|str|datetime
+        The ending date, or the number of months to print.
+    """
+    timeline, body = tee(timeline, 2)
+    values = dict_split(timeline)
+    time = values.pop('TIME')
+    start = next(values.pop('START'))
+    del values['ACCOUNTS']
+    end = parse_end(start, end)
+    labels = values.keys()
+    cols = list(labels)
+    widths = {c: len(c) for c in labels}
+    if not include:
+        include = labels
+    for row in range(end):
+        for  col, v in values.items():
+            if col in include and col not in exclude:
+                v = next(v)
+                widths[col] = max(widths[col], len(f'{int(v):,d}'))
+    # Print the header.
+    print('Month', end=' ')
+    last = cols[-1]
+    for col in cols:
+        sep = '\n' if col == last else ' '
+        w = widths[col]+1
+        print(f'{col:^{w}}', end=sep)
+    print('-----', end=' ')
+    for col in cols:
+        sep = '\n' if col == last else ' '
+        widths[col]+1
+        print('-' * w, end=sep)
+    # Go through the rows and print the values.
+    values = dict_split(body)
+    time = values.pop('TIME')
+    for row in range(end):
+        print(unparse_month(next(time)), end=' ')
+        for col in cols:
+            v = int(next(values[col]))
+            sep = '\n' if col == last else ' '
+            print(f'${v:>{widths[col]},d}', end=sep) 
+    return None
