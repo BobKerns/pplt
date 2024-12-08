@@ -2,13 +2,17 @@
 
 ## A note about intent
 
-Our initial goal is to help you understand the principles behind how paying off the mortgage would affect our finances. Let me emphasize:
+Our initial goal is to help understand the principles behind how paying off the mortgage would affect our finances. Let me emphasize:
 
 _Understand the principles_.
 
 The _initial_ goal is _not_ to understand the specifics of our financial situation. That requires considerably more detail, which we should get to.
 
+BUT IT IS NOT WHERE TO START!
+
 Diving into out situation right away will result in endless discussions and no progress.
+
+Treating it a programming exercise won't work, either. You need to understand the problem before you can program it.
 
 It still covers a number of topics:
 
@@ -27,10 +31,11 @@ Not essential, but it will save you trouble.
 port install direnv
 ```
 
-## Create a github repo
+## Clone this repo on GitHub
 
 * Create it on the github web UI
-* Copy the URL
+* Copy the URL to your new repository
+* Clone it locally:
 
 ```bash
 git clone <url>
@@ -44,40 +49,11 @@ python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-`.envrc`:
+## What is here so far
 
-```bash
-if [ -d .venv ]; do
-  source .venv/bin/activate
-fi
-```
+There are some basic pieces here so we can quickly dive into conceptual exploration.
 
-`requirements.txt`:
-
-```text
-pltext
-pltext[completions]
-
-```
-
-## Create a `tests/` subdirectory
-
-```bash
-mkdir tests/
-touch tests/.gitignore
-```
-
-## Set up your python package
-
-* Choose a name, perhaps `mortgage`.
-* Create a subdirectory with that name.
-* Add an `__init__.py` file (it can be empty).
-
-## Add `utils.py`
-
-* Add `utils.py` [Download](./pplt/utils.py)
-
-This file has a number of useful tools that will let us explore without getting stuck on complex programming tasks, such as plotting. There are three main areas:
+This project has a number of useful tools that will let us explore without getting stuck on complex programming tasks, such as plotting. There are three main areas:
 
 * Compound interest rate calculations. These aren't useful for the main task, because they assume a constant situation (i.e. no payments, withdrawals, etc.). But they're useful for doing quick estimates, and to verify the main simulation. For example, if the only changes to an account are interest, these functions and simulation should produce the same result.
 

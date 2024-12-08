@@ -6,8 +6,8 @@
         "**/CVS": true,
         "**/.DS_Store": true,
         "**/Thumbs.db": true,
-        "**/.ruby-lsp": true,
-        "**/*.crswap": true
+        "**/*.crswap": true,
+        "**/.ruby-lsp": true
     },
     "hide-files.files": [],
     "cSpell.customDictionaries": {
@@ -17,5 +17,13 @@
             "addWords": true,
             "scope": "workspace"
         }
-    }
+    },
+    "editor.codeActionsOnSave": {
+
+    },
+    "editor.defaultColorDecorators": false,
+    "editor.experimentalWhitespaceRendering": "font",
+    "editor.foldingImportsByDefault": true,
+    "editor.guides.bracketPairs": false,
+    "editor.guides.bracketPairsHorizontal": true
 }
