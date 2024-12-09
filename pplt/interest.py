@@ -1,5 +1,11 @@
 '''
 Utilities for working with compound interest rates.
+
+Compound interest is a bit trickier than its seems. You cannot just divide the
+annual rate by 12 to get the monthly rate. Instead, you need to raise 1 + the
+annual rate to the 1/12th power. This is because the interest is compounded
+each month, so the interest is added to the principal each month, and you pay or
+earn interest on the interest.
 '''
 
 from datetime import datetime
