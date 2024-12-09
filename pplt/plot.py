@@ -12,8 +12,10 @@ from typing import Iterator, Literal, Optional
 
 import plotext as plt
 
-from pplt.time import months, next_month, parse_month, unparse_month
-from pplt.utils import dict_split, parse_end, take
+from pplt.dates import (
+    months, next_month, parse_month, unparse_month, parse_end,
+)
+from pplt.utils import dict_split, take
 
 
 def choose_stride(ymin: float, ymax: float):

@@ -7,7 +7,7 @@ from collections.abc import Collection
 from datetime import datetime
 from itertools import tee
 
-from pplt.time import parse_end, unparse_month
+from pplt.dates import parse_end, unparse_month
 from pplt.timeline import TimelineSeries
 from pplt.utils import dict_split
 
