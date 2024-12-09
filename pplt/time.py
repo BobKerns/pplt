@@ -23,9 +23,12 @@ def days_per_month(date: datetime|int):
     days: int
         The number of days in the month.
     """
-    month = date if isinstance(date, int) else date.month
+    if isinstance(date, int):
+        month, year = date, datetime.now().year
+    else:
+        month, year = date.month, date.year
     days = DAYS_PER_MONTH[(month-1)%12]
-    if month == 2 and (date.year % 4) == 0:
+    if month == 2 and (year % 4) == 0:
         days += 1
     return days
 
@@ -38,7 +41,7 @@ def next_month():
         The date at the start of the next month.
     """
     today = datetime.today()
-    today - today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    today = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     return today + timedelta(days=days_per_month(today))
 
 

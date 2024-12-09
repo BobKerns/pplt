@@ -16,8 +16,15 @@
             "path": "${workspaceFolder:pplt}/.cspell/custom-dictionary-workspace.txt",
             "addWords": true,
             "scope": "workspace"
-        }
+        },
     },
+    "cSpell.ignorePaths": [
+        "poetry.lock",
+        ".git/{info,lfs,logs,refs,objects}/**",
+        ".git/{index,*refs,*HEAD}",
+        ".vscode",
+        ".vscode-insiders"
+    ],
     "editor.codeActionsOnSave": {
 
     },
