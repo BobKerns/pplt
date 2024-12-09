@@ -51,8 +51,14 @@ class TimelineSeries(Generator[TimelineStep, None, NoReturn]):
     '''
     timeline: 'Timeline'
 
-type AccountUpdate = AccountState|float|AccountStatus|None
 type TimelineUpdateHandler = Callable[[TimelineStep], None]
+'''
+A function that updates the accounts in the timeline. These are pulled from the
+schedule once per month. They may re-add themselves if they are recurring.
+
+They are responsible for updating the accounts in the timeline, and may also
+modify the schedule.
+'''
 
 if TYPE_CHECKING:
     import pplt.schedule as sch
@@ -71,8 +77,21 @@ class Timeline:
     As there is no end to a timeline, the end date is not stored.
     '''
     schedule: 'sch.Schedule'
+    '''
+    The schedule of events that affect the accounts.
+    '''
+    
     start: date
+    '''
+    The starting date of the timeline.
+    '''
+
     accounts: dict[str, Account]
+    '''
+    The accounts in the timeline. The keys are the account names, and the values
+    are the `Account` objects describing the accounts, including their initial
+    values.
+    '''
 
     _series: ClassVar[WeakKeyDictionary[TimelineSeries, 'Timeline']] = WeakKeyDictionary()
 

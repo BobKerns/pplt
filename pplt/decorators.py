@@ -9,24 +9,73 @@ from typing import Optional, Protocol, TYPE_CHECKING
 
 from pplt.dates import next_month
 if TYPE_CHECKING:
-    from pplt.account import AccountState
+    from pplt.account import AccountState, AccountStatus
     from pplt.timeline import (
-        TimelineStep, TimelineAccountState, AccountUpdate,
+        TimelineStep, TimelineAccountState,
         TimelineUpdateHandler,
     )
 
+
+type AccountUpdate = 'AccountState|float|AccountStatus|None'''
+'''
+    Return value from handlers to indicate how accounts should be updated.
+'''
+
 class EventHandler(Protocol):
+    '''
+    The signature for the user-defined event functions, before applying
+    the decorator.
+    '''
     @abstractmethod
     def __call__(self, date_: date,
                  account: 'TimelineAccountState',
                  state: 'AccountState', /,
                  **kwargs) -> 'AccountUpdate':
+        '''
+        The signature for the user-defined event functions, before applying
+        the decorator.
+
+        PARAMETERS
+        ----------
+        date_: date
+            The date of the event.
+        account: TimelineAccountState
+            The account state generator for the account, which can be updated.
+        state: AccountState
+            The current state of the account.
+        kwargs: dict
+            Any constant parameters needed to calculate the update,
+            such as interest rates or amounts. Supplied by the user
+            when adding the event to the schedule.
+        '''
         ...
 
 class EventSpecifier(Protocol):
+    '''
+    The signature for the user-defined event functions, after applying
+    the decorator but before being configured onto the schedule.
+    '''
     @abstractmethod
     def __call__(self, name: str, start: Optional[date]=None, /,
                  **kwargs) -> 'TimelineUpdateHandler':
+        '''
+        The signature for the user-defined event functions, after applying
+        the decorator but before being configured onto the schedule.
+
+        This is the signature that the user calls to add the event to the
+        schedule.
+
+        PARAMETERS
+        ----------
+        name: str
+            The name of the account to update.
+        start: date
+            The date to start the event.
+        kwargs: dict
+            Any constant parameters needed to calculate the update,
+            such as interest rates or amounts. Supplied by the user
+            when adding the event to the schedule.
+        '''
         ...
 
 def event(period: Optional[tuple[str, int]|timedelta]=None):
@@ -88,6 +137,10 @@ def event(period: Optional[tuple[str, int]|timedelta]=None):
 
 
 class TransactionHandler(Protocol):
+    '''
+    The signature for the user-defined transaction functions, before applying
+    the decorator.
+    '''
     @abstractmethod
     def __call__(self, date_: date,
                  from_account: 'TimelineAccountState',
@@ -96,12 +149,57 @@ class TransactionHandler(Protocol):
                  to_state: 'AccountState',
                  /,
                  **kwargs) -> 'AccountUpdate':
+        '''
+        The signature for the user-defined transaction functions, before applying
+        the decorator.
+
+        date_: date
+            The date of the transaction.
+        from_account: TimelineAccountState
+            The account state generator for the 'from' account, which can be updated.
+        from_state: AccountState
+            The current state of the 'from' account.
+        to_account: TimelineAccountState
+            The account state generator for the 'to' account, which can be updated.
+        to_state: AccountState
+            The current state of the 'to' account.
+        kwargs: dict
+            Any constant parameters needed to calculate the update,
+            such as interest rates or amounts. Supplied by the user
+            when adding the event to the schedule.
+        '''
         ...
 
 class TransactionSpecifier(Protocol):
+    '''
+    The signature for the user-defined transaction functions, after applying
+    the decorator but before being configured onto the schedule.
+    '''
     @abstractmethod
     def __call__(self, from_: str, to_: str, start: Optional[date]=None, /,
                  **kwargs) -> 'TimelineUpdateHandler':
+        '''
+        The signature for the user-defined transaction functions, after applying
+        the decorator but before being configured onto the schedule.
+
+        This is the signature that the user calls to add the event to the
+        schedule.
+
+        PARAMETERS
+        ----------
+        name: str
+            The name of the account to update.
+        start: date
+            The date to start the event.
+        from_account: str
+            The name of the account to transfer from.
+        to_account: str
+            The name of the account to transfer to.
+        kwargs: dict
+            Any constant parameters needed to calculate the update,
+            such as interest rates or amounts. Supplied by the user
+            when adding the event to the schedule.
+        '''
         ...
 
 def transaction(period: Optional[tuple[str, int]|timedelta]=None):
