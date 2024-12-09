@@ -18,9 +18,13 @@ def dict_join(d: dict[str, Iterable[Any]]):
     """
     state = {k: iter(v) if isinstance(v, Iterable) else v
              for k, v in d.items()}
-    while True:
-        yield {k: next(v) if isinstance(v, Iterator) else v
-               for k, v in state.items()}
+    try:
+        while True:
+            yield {k: next(v) if isinstance(v, Iterator) else v
+                for k, v in state.items()}
+            print('here')
+    except StopIteration:
+        pass
 
 
 def dict_split(joined: Iterator[dict[str, Any]]):
@@ -31,6 +35,10 @@ def dict_split(joined: Iterator[dict[str, Any]]):
     first = next(peek)
     keys = first.keys()
     def split(key: str, d: Any):
-        while True:
-            yield next(d)[key]
+        try:
+            while True:
+                n = next(d)
+                yield n[key]
+        except StopIteration:
+            pass
     return {key: split(key, d) for key, d in zip(keys, tee(main, len(keys)))}
