@@ -3,16 +3,16 @@ A `Timeline` represents a financial future, with a series of `AccountState` obje
 for each account, on a monthly basis.
 '''
 
-from collections.abc import Iterable, Callable, Iterator, Generator
+from collections.abc import Iterable, Callable, Generator
 from dataclasses import dataclass
 from datetime import date, timedelta
-import sched
-from tkinter import N
 from typing import TYPE_CHECKING, ClassVar, NoReturn, Optional
 from weakref import WeakKeyDictionary
 
-from pplt.account import Account, AccountState, AccountStatus
+from pplt.account import Account, AccountState
 from pplt.dates import days_per_month, parse_month
+if TYPE_CHECKING:
+    import pplt.schedule as sch
 
 type TimelineAccountState = Generator[AccountState, None, NoReturn]
 '''
@@ -36,7 +36,7 @@ class TimelineStep:
     and the values of the accounts.
     '''
     date: date
-    schedule: 'sched.Schedule'
+    schedule: 'sch.Schedule'
     accounts: TimelineAccountStates
     values: dict[str, float]
 
@@ -93,7 +93,8 @@ class Timeline:
     values.
     '''
 
-    _series: ClassVar[WeakKeyDictionary[TimelineSeries, 'Timeline']] = WeakKeyDictionary()
+    _series: ClassVar[WeakKeyDictionary[TimelineSeries, 'Timeline']] = \
+        WeakKeyDictionary()
 
     def __iter__(self) -> TimelineSeries:
         def TimelineSeries_():
@@ -102,7 +103,10 @@ class Timeline:
             '''
             date = self.start
             # Start the account iterators.
-            accounts: TimelineAccountStates = {k: iter(v) for k, v in self.accounts.items()}
+            accounts: TimelineAccountStates = {
+                k: iter(v)
+                for k, v in self.accounts.items()
+            }
             # Start with the initial schedule, which will be modified by the events.
             schedule = self.schedule.copy()
             while True:
@@ -151,8 +155,10 @@ def timeline(schedule: Optional['sch.Schedule']=None,
         from pplt.schedule import Schedule
         schedule = Schedule()
     start = parse_month(start)
-    accounts = {k: v if isinstance(v, Account) else Account(k, v)
-                for k, v in kwargs.items()}
+    accounts: dict[str, Account] = {
+        k: v if isinstance(v, Account) else Account(k, v)
+        for k, v in kwargs.items()
+    }
     return Timeline(schedule, start, accounts=accounts)
 
 
