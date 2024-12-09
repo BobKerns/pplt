@@ -26,7 +26,7 @@ class Schedule:
         return self.__events
 
     def __init__(self, events: Optional[list['TimelineUpdateHandler']]=None):
-        self._events = heapify(events) if events else []
+        self.__events = heapify(events) if events else []
 
     def copy(self):
         '''
@@ -36,7 +36,7 @@ class Schedule:
 
     def add(self,
             date_: date,
-            event: Callable[[date, dict[str, AccountState]], None],
+            handler: TimelineUpdateHandler,
             ):
         '''
         Add an event to the schedule.
@@ -48,9 +48,9 @@ class Schedule:
         event: Callable[[datetime, dict[str, AccountState]], None]
             The event function.
         '''
-        heappush(self.events, (date_, event))
+        heappush(self.events, (date_, handler))
 
-    def run(self, date_: date) -> Iterable[TimelineUpdateHandler]:
+    def run(self, date_: date) -> 'Iterable[TimelineUpdateHandler]':
         '''
         Run through the events up to a given date.
 

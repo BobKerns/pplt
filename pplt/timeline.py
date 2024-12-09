@@ -5,21 +5,57 @@ for each account, on a monthly basis.
 
 from collections.abc import Iterable, Callable, Iterator, Generator
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Optional
+from datetime import date, timedelta
+import sched
+from tkinter import N
+from typing import TYPE_CHECKING, ClassVar, NoReturn, Optional
+from weakref import WeakKeyDictionary
 
 from pplt.account import Account, AccountState, AccountStatus
 from pplt.dates import days_per_month, parse_month
+
+type TimelineAccountState = Generator[AccountState, None, NoReturn]
+'''
+A generator of `AccountState` objects, representing the state of an account.
+The generator accepts updates to the account, and yields the updated state.
+'''
+
+type TimelineAccountStates = dict[str, TimelineAccountState]
+'''
+The state of the accounts in the timeline.
+
+The keys are the account names, and the values are generators of `AccountState`.
+The generators accept send() calls with updates to the accounts, while next()
+returns the updated state.
+'''
+
+@dataclass
+class TimelineStep:
+    '''
+    A step in the timeline, with the date, account iterators, current schedule,
+    and the values of the accounts.
+    '''
+    date: date
+    schedule: 'sched.Schedule'
+    accounts: TimelineAccountStates
+    values: dict[str, float]
+
+class TimelineSeries(Generator[TimelineStep, None, NoReturn]):
+    '''
+    A series of `TimelineStep` objects, representing the values of the accounts.
+
+    This is a generator of `TimelineStep` objects, with the date, account values.
+
+    The generator itself has a `timeline` attribute, which is the metadata for the
+    entire timeline.
+    '''
+    timeline: 'Timeline'
+
+type AccountUpdate = AccountState|float|AccountStatus|None
+type TimelineUpdateHandler = Callable[[TimelineStep], None]
+
 if TYPE_CHECKING:
     import pplt.schedule as sch
-
-type TimelineStep = dict[str, Iterator[float|datetime]|Timeline]
-type TimelineSeries = Iterator[TimelineStep]
-type TimelineState = dict[str, Generator[AccountState, None, None]]
-
-type AccountUpdate = AccountState|float|AccountStatus
-type TimelineEventHandler = Callable[[datetime, dict[str, Account], TimelineStep],
-                                     AccountUpdate]
 
 @dataclass
 class Timeline:
@@ -35,58 +71,62 @@ class Timeline:
     As there is no end to a timeline, the end date is not stored.
     '''
     schedule: 'sch.Schedule'
-    start: datetime
+    start: date
     accounts: dict[str, Account]
 
+    _series: ClassVar[WeakKeyDictionary[TimelineSeries, 'Timeline']] = WeakKeyDictionary()
+
     def __iter__(self) -> TimelineSeries:
-        def iterator():
+        def TimelineSeries_():
             '''
             Iterate over the values of the timeline.
             '''
             date = self.start
             # Start the account iterators.
-            accounts: TimelineState = {k: iter(v) for k, v in self.accounts.items()}
+            accounts: TimelineAccountStates = {k: iter(v) for k, v in self.accounts.items()}
+            # Start with the initial schedule, which will be modified by the events.
             schedule = self.schedule.copy()
             while True:
                 states =  {k: next(v) for k, v in accounts.items()}
-                yield {
-                    'TIME': date,
-                    'TIMELINE': self,
-                    'SCHEDULE': schedule,
-                    **states,
-                }
+                step = TimelineStep(date, schedule, accounts, states)
+                yield step
                 date = date + timedelta(days=days_per_month(date))
                 for event in self.schedule.run(date):
-                    event(schedule, date, accounts)
-        it = iterator()
-        it.timeline = self
+                    event(step)
+        # Make it a bit easier to recognize series generator.
+        # We can't override the __class__ or add attributes.
+        TimelineSeries_.__name__ = 'TimelineSeries'
+        TimelineSeries_.__qualname__ = 'TimelineSeries'
+        it = TimelineSeries_()
+        # Since we can't add attributes, we use a weak reference to the metadata.
+        # This allows it to be GC'd when the series is no longer referenced, but
+        # still allows the timeline to be accessed from the series to allow restarts.
+        Timeline._series[it] = self
         return it
 
 
 def timeline(schedule: Optional['sch.Schedule']=None,
-             start: Optional[datetime]=None, /,
-             **kwargs: Iterable[float]):
+             start: Optional[date|str]=None, /,
+             **kwargs: Iterable[float]) -> Timeline:
     """
-    Create a timeline of values.
+    Create a timeline of values. Iterating over it produces a
+    `TimelineSeries`.
 
-    The special entry `'METADATA'` holds metadata, including the original
-    start of the timeline, allowing for restarts.
+    The `TimelineSeries` is an iterator of `TimelineStep` objects,
+    each with the date, account values, and current schedule.
 
     PARAMETERS
     ----------
 
-    start: Optional[datetime]
-        Starting date.
-    **kwargs: Iterable[float]
-        A series of values to plot.
+    start: `Optional[date|str]`
+        Starting date. Defaults to the start of the next month.
+    **kwargs: `Iterable[Account|float]`
+        Accounts, or their initial values for quick tests.
 
     RETURNS
     -------
-    timeline: Iterator[dict[str, float]]
-        A series of values, one for each key, plus:
-        * `'TIME'`, the date of the values.
-        * `'SCHEDULE'`, the active schedule of events.
-        * `'TIMELINE'`, the metadata (the `Timeline` object).
+    timeline: `TimelineSeries`
+        A monthly series of account values encapsulated in a `TimelineStep`.
     """
     if schedule is None:
         from pplt.schedule import Schedule
@@ -96,9 +136,12 @@ def timeline(schedule: Optional['sch.Schedule']=None,
                 for k, v in kwargs.items()}
     return Timeline(schedule, start, accounts=accounts)
 
+
 def restart(series: TimelineSeries) -> TimelineSeries:
     '''
-    Restart a timeline series.
+    Restart a timeline series. This is the same as calling `iter()` on
+    on the original `Timeline`, but avoids the need to find and keep
+    a reference, which can be a pain interactively.
 
     PARAMETERS
     ----------
@@ -110,4 +153,4 @@ def restart(series: TimelineSeries) -> TimelineSeries:
     series: TimelineSeries
         A series of values, with the date reset to the start.
     '''
-    return iter(series.timeline)
+    return iter(Timeline._series[series])
