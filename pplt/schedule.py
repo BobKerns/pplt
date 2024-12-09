@@ -7,7 +7,7 @@ that affect the accounts.
 
 from datetime import datetime
 from heapq import heappop, heappush, heapify
-from typing import Callable
+from typing import Callable, Optional
 
 from pplt.account import AccountState
 from pplt.timeline import Timeline, TimelineUpdateHandler
@@ -24,8 +24,8 @@ class Schedule:
     def events(self) -> list[TimelineUpdateHandler]:
         return self.__events
 
-    def __init__(self, events: list[TimelineUpdateHandler]=None):
-        self.events = heapify(events) if events else []
+    def __init__(self, events: Optional[list[TimelineUpdateHandler]]=None):
+        self._events = heapify(events) if events else []
 
     def copy(self):
         '''
@@ -33,7 +33,10 @@ class Schedule:
         '''
         return Schedule(self.events)
 
-    def add(self, date: datetime, event: Callable[[datetime, dict[str, AccountState]], None]):
+    def add(self,
+            date: datetime,
+            event: Callable[[datetime, dict[str, AccountState]], None],
+            ):
         '''
         Add an event to the schedule.
 

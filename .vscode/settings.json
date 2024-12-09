@@ -32,5 +32,10 @@
     "editor.experimentalWhitespaceRendering": "font",
     "editor.foldingImportsByDefault": true,
     "editor.guides.bracketPairs": false,
-    "editor.guides.bracketPairsHorizontal": true
+    "editor.guides.bracketPairsHorizontal": true,
+    "python.testing.pytestArgs": [
+        "test"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true
 }
