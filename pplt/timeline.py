@@ -62,7 +62,7 @@ class Timeline:
 
 
 def timeline(schedule: Optional['sch.Schedule']=None,
-             start: datetime=next_month(), /,
+             start: Optional[datetime]=None, /,
              **kwargs: Iterable[float]):
     """
     Create a timeline of values.
