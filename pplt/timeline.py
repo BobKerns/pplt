@@ -3,22 +3,22 @@ A `Timeline` represents a financial future, with a series of `AccountState` obje
 for each account, on a monthly basis.
 '''
 
-from collections.abc import Iterable, Callable
+from collections.abc import Iterable, Callable, Iterator, Generator
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from itertools import tee
-from typing import Iterator, TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional
 
 from pplt.account import Account, AccountState, AccountStatus
-from pplt.utils import days_per_month, dict_join, months, next_month, parse_month
+from pplt.dates import days_per_month, parse_month
 if TYPE_CHECKING:
     import pplt.schedule as sch
 
 type TimelineStep = dict[str, Iterator[float|datetime]|Timeline]
 type TimelineSeries = Iterator[TimelineStep]
+type TimelineState = dict[str, Generator[AccountState, None, None]]
 
 type AccountUpdate = AccountState|float|AccountStatus
-type TimelineEventHandler = Callable[[datetime, Account, AccountState, TimelineStep],
+type TimelineEventHandler = Callable[[datetime, dict[str, Account], TimelineStep],
                                      AccountUpdate]
 
 @dataclass
@@ -45,17 +45,19 @@ class Timeline:
             '''
             date = self.start
             # Start the account iterators.
-            accounts = {k: iter(v) for k, v in self.accounts.items()}
+            accounts: TimelineState = {k: iter(v) for k, v in self.accounts.items()}
             schedule = self.schedule.copy()
             while True:
+                states =  {k: next(v) for k, v in accounts.items()}
                 yield {
                     'TIME': date,
                     'TIMELINE': self,
                     'SCHEDULE': schedule,
-                    **{k: next(v) for k, v in accounts.items()}
+                    **states,
                 }
                 date = date + timedelta(days=days_per_month(date))
-                self.schedule.run(date)
+                for event in self.schedule.run(date):
+                    event(schedule, date, accounts)
         it = iterator()
         it.timeline = self
         return it

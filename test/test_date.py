@@ -5,7 +5,7 @@ Tests for the time module.
 from datetime import date, timedelta
 from itertools import islice
 
-from pplt.time import (
+from pplt.dates import (
     days_per_month, next_month, months, months_str,
     parse_month, unparse_month, parse_end
 )
@@ -50,7 +50,7 @@ def test_months_str():
         '21/01', '21/02', '21/03', '21/04', '21/05', '21/06',
         '21/07', '21/08', '21/09', '21/10', '21/11', '21/12'
     ]
-    
+
 def test_parse_month():
     assert parse_month('21/01') == date(2021, 1, 1)
     assert parse_month('21/02') == date(2021, 2, 1)
@@ -64,7 +64,7 @@ def test_parse_month():
     assert parse_month('21/10') == date(2021, 10, 1)
     assert parse_month('21/11') == date(2021, 11, 1)
     assert parse_month('21/12') == date(2021, 12, 1)
-    
+
 def test_unparse_month():
     assert unparse_month(date(2021, 1, 1)) == '21/01'
     assert unparse_month(date(2021, 2, 1)) == '21/02'
@@ -78,7 +78,7 @@ def test_unparse_month():
     assert unparse_month(date(2021, 10, 1)) == '21/10'
     assert unparse_month(date(2021, 11, 1)) == '21/11'
     assert unparse_month(date(2021, 12, 1)) == '21/12'
-    
+
 
 def test_parse_end():
     assert parse_end('21/01', '21/01') == 0
@@ -87,4 +87,3 @@ def test_parse_end():
     assert parse_end('21/01', '22/01') == 12
     assert parse_end('21/01', '22/02') == 13
     assert parse_end('21/12', '22/01') == 1
-    

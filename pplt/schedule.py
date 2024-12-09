@@ -5,12 +5,13 @@ This maintains a schedule of events and transactions, one-time and recurring,
 that affect the accounts.
 '''
 
-from datetime import datetime
+from collections.abc import Iterable
+from datetime import date
 from heapq import heappop, heappush, heapify
-from typing import Callable, Optional
+from typing import Callable, Optional, TYPE_CHECKING
 
 from pplt.account import AccountState
-from pplt.timeline import Timeline, TimelineUpdateHandler
+from pplt.timeline import TimelineUpdateHandler
 
 class Schedule:
     '''
@@ -19,12 +20,12 @@ class Schedule:
     The schedule is a priority queue of events, ordered by date.
     '''
 
-    __events: list[TimelineUpdateHandler]
+    __events: list['TimelineUpdateHandler']
     @property
-    def events(self) -> list[TimelineUpdateHandler]:
+    def events(self) -> list['TimelineUpdateHandler']:
         return self.__events
 
-    def __init__(self, events: Optional[list[TimelineUpdateHandler]]=None):
+    def __init__(self, events: Optional[list['TimelineUpdateHandler']]=None):
         self._events = heapify(events) if events else []
 
     def copy(self):
@@ -34,8 +35,8 @@ class Schedule:
         return Schedule(self.events)
 
     def add(self,
-            date: datetime,
-            event: Callable[[datetime, dict[str, AccountState]], None],
+            date_: date,
+            event: Callable[[date, dict[str, AccountState]], None],
             ):
         '''
         Add an event to the schedule.
@@ -47,24 +48,17 @@ class Schedule:
         event: Callable[[datetime, dict[str, AccountState]], None]
             The event function.
         '''
-        heappush(self.events, (date, event))
+        heappush(self.events, (date_, event))
 
-    def run(self, date: datetime,
-            timeline: Timeline,
-            states: dict[str, AccountState]):
+    def run(self, date_: date) -> Iterable[TimelineUpdateHandler]:
         '''
-        Run the events up to a given date.
+        Run through the events up to a given date.
 
         PARAMETERS
         ----------
         date: datetime
             The date to run up to.
-        timeline: Timeline
-            The timeline of the accounts.
-        states: dict[str, AccountState]
-            The current states of the accounts.
         '''
-        while self.events and self.events[0][0] <= date:
+        while self.events and self.events[0][0] <= date_:
             _, event = heappop(self.events)
-            event(self, date, timeline, states)
-
+            yield event
