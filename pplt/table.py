@@ -2,6 +2,7 @@
 Terminal table printer
 '''
 
+
 from collections.abc import Collection
 from datetime import datetime
 from itertools import tee

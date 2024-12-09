@@ -8,7 +8,11 @@ each month, so the interest is added to the principal each month, and you pay or
 earn interest on the interest.
 '''
 
-from datetime import datetime
+from contextlib import suppress
+from datetime import datetime, date
+from tracemalloc import start
+
+from pplt.dates import parse_month
 
 
 def monthly_rate(annual: float):
@@ -62,19 +66,19 @@ def quarterly_pct(annual: float):
     return 100 * quarterly_rate(annual / 100)
 
 
-def rate_of_return(start_date: datetime|str, start_value: float,
-                   end_date: datetime|str, end_value: float):
+def rate_of_return(start_date: date|str, start_value: float,
+                   end_date: date|str, end_value: float):
     '''
     Given a start date and value, and an end date and value, calculate the
     annual rate of return.
 
     PARAMETERS
     ----------
-    start_date: datetime|str
+    start_date: date|str
         Starting date.
     start_value: float
         Starting value.
-    end_date: datetime|str
+    end_date: date|str
         Ending date.
     end_value: float
         Ending value.
@@ -84,10 +88,18 @@ def rate_of_return(start_date: datetime|str, start_value: float,
     rate: float
         The annual rate of return, as a fraction.
     '''
-    if isinstance(start_date, str):
-        start_date = datetime.strptime(start_date, "%Y-%m-%d")
-    if isinstance(end_date, str):
-        end_date = datetime.strptime(end_date, "%Y-%m-%d")
+    def parse(date_: date|str) -> date:
+        match date_:
+            case date():
+                return date_
+            case str():
+                with suppress(ValueError):
+                    return datetime.strptime(date_, "%Y-%m-%d")
+                return parse_month(date_)
+            case _:
+                raise ValueError(f"Invalid date: {date_}")
+    start_date = parse(start_date)
+    end_date = parse(end_date)
     change = end_value - start_value
     frac = change / start_value
     days = (end_date - start_date).days
@@ -95,20 +107,19 @@ def rate_of_return(start_date: datetime|str, start_value: float,
     annual = daily ** 365.25
     return annual - 1
 
-
-def pct_return(start_date: datetime|str, start_value: float,
-               end_date: datetime|str, end_value: float):
+def pct_return(start_date: date|str, start_value: float,
+               end_date: date|str, end_value: float):
     '''
     Given a start date and value, and an end date and value, calculate the
     annual rate of return as a percentage.
 
     PARAMETERS
     ----------
-    start_date: datetime|str
+    start_date: date|str
         Starting date.
     start_value: float
         Starting value.
-    end_date: datetime|str
+    end_date: date|str
         Ending date.
     end_value: float
         Ending value.

@@ -9,7 +9,7 @@ from typing import Optional
 
 
 DAYS_PER_MONTH = (31,28,31,30,31,30,31,31,30,31,30,31)
-def days_per_month(date_: datetime|date|int):
+def days_per_month(date_: date|int):
     """
     The number of days in a month.
 
@@ -28,8 +28,6 @@ def days_per_month(date_: datetime|date|int):
             month, year = date_, date.today().year
         case date():
             month, year = date_.month, date_.year
-        case datetime():
-            month, year = date_.month, date_.year
         case _:
             raise ValueError(f'Invalid date: {date_}.')
     days = DAYS_PER_MONTH[(month-1)%12]
@@ -39,7 +37,7 @@ def days_per_month(date_: datetime|date|int):
     return days
 
 
-def next_month(from_date: Optional[date]=None) -> date:
+def next_month(from_date: Optional[date|str]=None) -> date:
     """
     The start of the next month from the given date, or today.
     RETURNS
@@ -52,30 +50,50 @@ def next_month(from_date: Optional[date]=None) -> date:
     return from_date + timedelta(days=days_per_month(from_date))
 
 
-def months(start: Optional[date]=None) -> Iterable[date]:
+def months(start: Optional[date|str]=None) -> Iterable[date]:
     '''
     Yields a series of dates 1 month apart.
 
     PARAMETERS
     ----------
-    start: date.date
+    start: date|str
         Starting date. Default=next_month()
+
+    YIELDS
+    ------
+    date: date
+        The next date in the series.
     '''
     if start is None:
-        start = next_month()
-    date = start
+        date_ = next_month()
+    else:
+        date_ = parse_month(start)
     while True:
-        yield date
-        date = date + timedelta(days=days_per_month(date))
+        yield date_
+        date_ = date_ + timedelta(days=days_per_month(date_))
 
 
-def months_str(start: Optional[date]=None,
-               end: Optional[int]=None,
+def months_str(start: Optional[date|str]=None,
+               end: Optional[int|date|str]=None,
                stride: int=1):
     """
     Returns a list of month strings for the pltext library.
 
     These can be used in `plt.xticks()` or as x-values in `plt.plot()`.
+
+    PARAMETERS
+    ----------
+    start: date|str
+        Starting date. Default=next_month()
+    end: Optional[int|date|str]
+        Number of months to print.
+    stride: int
+        Number of months to step ahead each time.
+
+    RETURNS
+    -------
+    series: Iterable[str]
+        A series of month strings.
     """
     if start is None:
         start = next_month()
@@ -85,7 +103,7 @@ def months_str(start: Optional[date]=None,
     return islice(series, 0, end, stride)
 
 
-def parse_month(date_: Optional[str|date]=None):
+def parse_month(date_: Optional[str|date]=None) -> date:
     '''
     Parse a date string or date object into a month.
 
@@ -106,11 +124,11 @@ def parse_month(date_: Optional[str|date]=None):
                 raise ValueError(f'Invalid year: {year}.')
             return date(year, month, 1)
         case date():
-            return date.replace(day=1)
+            return date_.replace(day=1)
         case datetime():
             return date(date_.year, date_.month, date_.day)
         case _:
-            raise ValueError(f'Invalid date: {date}.')
+            raise ValueError(f'Invalid date: {date_}.')
 
 
 def unparse_month(date: date):
@@ -128,7 +146,7 @@ def unparse_month(date: date):
 def parse_end(start: date|str, end: int|str|date) -> int:
     """
     Parse the end date as the number of months to show.
-    
+
     NOTE: This results in end-exclusive ranges.
 
     PARAMETERS
