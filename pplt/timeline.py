@@ -3,16 +3,16 @@ A `Timeline` represents a financial future, with a series of `AccountState` obje
 for each account, on a monthly basis.
 '''
 
-from collections.abc import Iterable, Callable, Iterator, Generator
+from collections.abc import Iterable, Callable, Generator
 from dataclasses import dataclass
 from datetime import date, timedelta
-import sched
-from tkinter import N
 from typing import TYPE_CHECKING, ClassVar, NoReturn, Optional
 from weakref import WeakKeyDictionary
 
-from pplt.account import Account, AccountState, AccountStatus
+from pplt.account import Account, AccountState
 from pplt.dates import days_per_month, parse_month
+if TYPE_CHECKING:
+    import pplt.schedule as sch
 
 type TimelineAccountState = Generator[AccountState, None, NoReturn]
 '''
@@ -29,6 +29,11 @@ The generators accept send() calls with updates to the accounts, while next()
 returns the updated state.
 '''
 
+type CurrentAccountStates = dict[str, AccountState]
+'''
+The current state of the accounts in the timeline.
+'''
+
 @dataclass
 class TimelineStep:
     '''
@@ -36,9 +41,9 @@ class TimelineStep:
     and the values of the accounts.
     '''
     date: date
-    schedule: 'sched.Schedule'
+    schedule: 'sch.Schedule'
     accounts: TimelineAccountStates
-    values: dict[str, float]
+    values: CurrentAccountStates
 
 class TimelineSeries(Generator[TimelineStep, None, NoReturn]):
     '''
@@ -80,7 +85,7 @@ class Timeline:
     '''
     The schedule of events that affect the accounts.
     '''
-    
+
     start: date
     '''
     The starting date of the timeline.
@@ -93,24 +98,37 @@ class Timeline:
     values.
     '''
 
-    _series: ClassVar[WeakKeyDictionary[TimelineSeries, 'Timeline']] = WeakKeyDictionary()
+    _series: ClassVar[WeakKeyDictionary[TimelineSeries, 'Timeline']] = \
+        WeakKeyDictionary()
 
     def __iter__(self) -> TimelineSeries:
         def TimelineSeries_():
             '''
             Iterate over the values of the timeline.
             '''
-            date = self.start
+            date_ = self.start
             # Start the account iterators.
-            accounts: TimelineAccountStates = {k: iter(v) for k, v in self.accounts.items()}
+            accounts: TimelineAccountStates = {
+                k: iter(v)
+                for k, v in self.accounts.items()
+            }
             # Start with the initial schedule, which will be modified by the events.
             schedule = self.schedule.copy()
             while True:
                 states =  {k: next(v) for k, v in accounts.items()}
-                step = TimelineStep(date, schedule, accounts, states)
+                step = TimelineStep(date_, schedule, accounts, states)
                 yield step
-                date = date + timedelta(days=days_per_month(date))
-                for event in self.schedule.run(date):
+                date_ = date_ + timedelta(days=days_per_month(date_))
+                # Note that we don't update the account states after each event.
+                # Updating the states would introduce order-dependence, and also
+                # deviate from how the real world usually works, with a reconciliation
+                # step, usually daily rather than monthly, applying all the updates
+                # at once.
+                for step_date, event in self.schedule.run(date_):
+                    assert step_date <= date_
+                    assert step_date >= step_date
+                    if step_date > step.date:
+                        step = TimelineStep(step_date, schedule, accounts, states)
                     event(step)
         # Make it a bit easier to recognize series generator.
         # We can't override the __class__ or add attributes.
@@ -151,8 +169,10 @@ def timeline(schedule: Optional['sch.Schedule']=None,
         from pplt.schedule import Schedule
         schedule = Schedule()
     start = parse_month(start)
-    accounts = {k: v if isinstance(v, Account) else Account(k, v)
-                for k, v in kwargs.items()}
+    accounts: dict[str, Account] = {
+        k: v if isinstance(v, Account) else Account(k, v)
+        for k, v in kwargs.items()
+    }
     return Timeline(schedule, start, accounts=accounts)
 
 

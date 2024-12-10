@@ -5,13 +5,14 @@ This maintains a schedule of events and transactions, one-time and recurring,
 that affect the accounts.
 '''
 
-from collections.abc import Iterable
 from datetime import date
 from heapq import heappop, heappush, heapify
-from typing import Callable, Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
-from pplt.account import AccountState
 from pplt.timeline import TimelineUpdateHandler
+from pplt.dates import parse_month
 
 class Schedule:
     '''
@@ -20,6 +21,8 @@ class Schedule:
     The schedule is a priority queue of events, ordered by date.
     '''
 
+    __last_run: date|None
+
     __events: list['TimelineUpdateHandler']
     @property
     def events(self) -> list['TimelineUpdateHandler']:
@@ -27,6 +30,7 @@ class Schedule:
 
     def __init__(self, events: Optional[list['TimelineUpdateHandler']]=None):
         self.__events = heapify(events) if events else []
+        self.__last_run = None
 
     def copy(self):
         '''
@@ -35,7 +39,7 @@ class Schedule:
         return Schedule(self.events)
 
     def add(self,
-            date_: date,
+            date_: date|str,
             handler: TimelineUpdateHandler,
             ):
         '''
@@ -43,14 +47,18 @@ class Schedule:
 
         PARAMETERS
         ----------
-        date: datetime
+        date: date|str
             The date of the event.
         event: Callable[[datetime, dict[str, AccountState]], None]
             The event function.
         '''
+        date_ = parse_month(date_)
+        if self.__last_run and date_ <= self.__last_run:
+            raise ValueError('Can only add future dates. '
+                             f'date={date_}, last_run={self.__last_run}')
         heappush(self.events, (date_, handler))
 
-    def run(self, date_: date) -> 'Iterable[TimelineUpdateHandler]':
+    def run(self, date_: date) -> 'Iterable[tuple[date, TimelineUpdateHandler]]':
         '''
         Run through the events up to a given date.
 
@@ -59,6 +67,9 @@ class Schedule:
         date: datetime
             The date to run up to.
         '''
-        while self.events and self.events[0][0] <= date_:
-            _, event = heappop(self.events)
-            yield event
+        if self.__last_run and date_ <= self.__last_run:
+            raise ValueError('Can only run to future dates. '
+                             f'date={date_}, last_run={self.__last_run}')
+        self.__last_run = date_
+        while self.__events and self.__events[0][0] <= date_:
+            yield heappop(self.__events)
