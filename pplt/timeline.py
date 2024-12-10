@@ -29,6 +29,11 @@ The generators accept send() calls with updates to the accounts, while next()
 returns the updated state.
 '''
 
+type CurrentAccountStates = dict[str, AccountState]
+'''
+The current state of the accounts in the timeline.
+'''
+
 @dataclass
 class TimelineStep:
     '''
@@ -38,7 +43,7 @@ class TimelineStep:
     date: date
     schedule: 'sch.Schedule'
     accounts: TimelineAccountStates
-    values: dict[str, float]
+    values: CurrentAccountStates
 
 class TimelineSeries(Generator[TimelineStep, None, NoReturn]):
     '''
@@ -80,7 +85,7 @@ class Timeline:
     '''
     The schedule of events that affect the accounts.
     '''
-    
+
     start: date
     '''
     The starting date of the timeline.
@@ -101,7 +106,7 @@ class Timeline:
             '''
             Iterate over the values of the timeline.
             '''
-            date = self.start
+            date_ = self.start
             # Start the account iterators.
             accounts: TimelineAccountStates = {
                 k: iter(v)
@@ -111,10 +116,19 @@ class Timeline:
             schedule = self.schedule.copy()
             while True:
                 states =  {k: next(v) for k, v in accounts.items()}
-                step = TimelineStep(date, schedule, accounts, states)
+                step = TimelineStep(date_, schedule, accounts, states)
                 yield step
-                date = date + timedelta(days=days_per_month(date))
-                for event in self.schedule.run(date):
+                date_ = date_ + timedelta(days=days_per_month(date_))
+                # Note that we don't update the account states after each event.
+                # Updating the states would introduce order-dependence, and also
+                # deviate from how the real world usually works, with a reconciliation
+                # step, usually daily rather than monthly, applying all the updates
+                # at once.
+                for step_date, event in self.schedule.run(date_):
+                    assert step_date <= date_
+                    assert step_date >= step_date
+                    if step_date > step.date:
+                        step = TimelineStep(step_date, schedule, accounts, states)
                     event(step)
         # Make it a bit easier to recognize series generator.
         # We can't override the __class__ or add attributes.
