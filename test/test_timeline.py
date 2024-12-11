@@ -16,5 +16,5 @@ def test_timeline_basic():
     assert step.date == tl.start
     assert step.schedule != sch
     assert step.schedule.events == []
-    assert step.accounts == {}
+    assert step.states == {}
     assert step.values == {}
