@@ -19,6 +19,7 @@ pplt
 pytest
 pyupgrade
 pyyaml
+subiterators
 timedelta
 venv
 xlabels

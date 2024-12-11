@@ -10,7 +10,6 @@ earn interest on the interest.
 
 from contextlib import suppress
 from datetime import datetime, date
-from tracemalloc import start
 
 from pplt.dates import parse_month
 

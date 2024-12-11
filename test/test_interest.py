@@ -4,7 +4,10 @@ Tests for the interest module.
 
 from pytest import approx
 
-from pplt.interest import daily_pct, daily_rate, monthly_pct, monthly_rate, quarterly_pct, quarterly_rate
+from pplt.interest import (
+    daily_pct, daily_rate, monthly_pct,
+    monthly_rate, quarterly_pct, quarterly_rate,
+)
 
 def test_monthly_rate():
     assert 1_000*(1+monthly_rate(0.10))**12 == approx(1_100.0)

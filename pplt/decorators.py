@@ -4,7 +4,6 @@ Decorators for the pplt package.
 
 from abc import abstractmethod
 from collections.abc import Callable
-from functools import wraps
 from datetime import date, timedelta
 from typing import Optional, Protocol, TYPE_CHECKING
 
@@ -17,7 +16,7 @@ if TYPE_CHECKING:
     )
 
 
-type AccountUpdate = 'AccountState|float|AccountStatus|None'''
+type AccountUpdate = 'AccountValue|float|AccountStatus|None'
 '''
     Return value from handlers to indicate how accounts should be updated.
 '''
