@@ -12,18 +12,18 @@ A `future` account is an account that will be open in the future.
 '''
 
 @total_ordering
-class AccountState:
+class AccountValue:
     '''
-    An `AccountState` is a number with a status, used both to represent the
+    An `AccountValue` is a number with a status, used both to represent the
     initial state of an account, and subsequent states. It represents what can change
     in an account: the balance and the status.
 
-    `AccountState` objects can be treated as floats, and can be compared to other
-    `AccountState` objects or floats. They can also be added or subtracted from
-    other `AccountState` objects or floats.
+    `AccountValue` objects can be treated as floats, and can be compared to other
+    `AccountValue` objects or floats. They can also be added or subtracted from
+    other `AccountValue` objects or floats.
 
-    You can multiply or divide a `AccountState` object by a float or int, but you
-    can't multiply or divide two `AccountState` objects.
+    You can multiply or divide a `AccountValue` object by a float or int, but you
+    can't multiply or divide two `AccountValue` objects.
     '''
 
     __balance: float
@@ -67,7 +67,7 @@ class AccountState:
         if self.status != 'open':
             return NotImplemented
         match value:
-            case float(balance) | int(balance) | AccountState(balance, 'open'):
+            case float(balance) | int(balance) | AccountValue(balance, 'open'):
                 return self.balance == balance
             case _:
                 return NotImplemented
@@ -79,7 +79,7 @@ class AccountState:
         if self.status != 'open':
             return NotImplemented
         match value:
-            case float(balance) | int(balance) | AccountState(balance, 'open'):
+            case float(balance) | int(balance) | AccountValue(balance, 'open'):
                 return self.balance < balance
             case _:
                 return NotImplemented
@@ -88,7 +88,7 @@ class AccountState:
         if self.status != 'open':
             return NotImplemented
         match value:
-            case float(balance) | int(balance) | AccountState(balance, 'open'):
+            case float(balance) | int(balance) | AccountValue(balance, 'open'):
                 return self.balance + float(balance)
             case _:
                 return
@@ -100,7 +100,7 @@ class AccountState:
         if self.status != 'open':
             return NotImplemented
         match value:
-            case float(balance) | int(balance) | AccountState(balance, 'open'):
+            case float(balance) | int(balance) | AccountValue(balance, 'open'):
                 return self.balance - float(balance)
             case _:
                 return NotImplemented
@@ -144,7 +144,7 @@ class AccountState:
                 return NotImplemented
 
 
-class Account(AccountState):
+class Account(AccountValue):
     '''
     Abstract Account. An account is just a pool of money with a name and a status.
 
@@ -166,9 +166,9 @@ class Account(AccountState):
         balance = self.balance
         status = self.status
         while True:
-            update = yield AccountState(self, balance, status)
+            update = yield AccountValue(self, balance, status)
             match update:
-                case AccountState(_, balance, status):
+                case AccountValue(_, balance, status):
                     balance = balance
                     status = status
                 case float(amount):

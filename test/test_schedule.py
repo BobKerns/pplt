@@ -9,7 +9,7 @@ from typing import Literal
 import pytest
 
 from pplt.timeline import (
-    TimelineStep, TimelineAccountStates, CurrentAccountStates,
+    TimelineStep, TimelineAccountStates, CurrentAccountValues,
 )
 from pplt.schedule import Schedule
 from pplt.dates import parse_month
@@ -21,7 +21,7 @@ type ScheduleTestStep = tuple[Literal['run'], date|str, dict[date|str, int]] \
 
 type ScheduleTest = tuple[ScheduleTestStep, ...]
 
-class TestHandler:
+class CallHandler:
     counts: Counter
     def __init__(self):
         self.counts = Counter()
@@ -71,10 +71,10 @@ tests: list[ScheduleTest] = [
 @pytest.mark.parametrize('sequence', tests)
 def test_schedule(sequence):
     sch = Schedule()
-    count = TestHandler()
+    count = CallHandler()
     counts = Counter()
-    accounts: TimelineAccountStates = {}
-    states: CurrentAccountStates = {}
+    states: TimelineAccountStates = {}
+    values: CurrentAccountValues = {}
     for entry in sequence:
         match entry:
             case ('run', date_, expected):
@@ -83,7 +83,7 @@ def test_schedule(sequence):
                     parse_month(d): c
                     for d, c in expected.items()
                 }
-                step = TimelineStep(date_, sch, accounts, states)
+                step = TimelineStep(date_, sch, states, values)
                 for step_date, f in sch.run(date_):
                     assert step_date == date_
                     f(step)

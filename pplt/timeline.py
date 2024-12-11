@@ -3,18 +3,19 @@ A `Timeline` represents a financial future, with a series of `AccountState` obje
 for each account, on a monthly basis.
 '''
 
+from abc import abstractmethod
 from collections.abc import Iterable, Callable, Generator
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import TYPE_CHECKING, ClassVar, NoReturn, Optional
+from typing import TYPE_CHECKING, ClassVar, NoReturn, Optional, Protocol
 from weakref import WeakKeyDictionary
 
-from pplt.account import Account, AccountState
+from pplt.account import Account, AccountValue
 from pplt.dates import days_per_month, parse_month
 if TYPE_CHECKING:
     import pplt.schedule as sch
 
-type TimelineAccountState = Generator[AccountState, None, NoReturn]
+type TimelineAccountState = Generator[AccountValue, None, NoReturn]
 '''
 A generator of `AccountState` objects, representing the state of an account.
 The generator accepts updates to the account, and yields the updated state.
@@ -29,9 +30,9 @@ The generators accept send() calls with updates to the accounts, while next()
 returns the updated state.
 '''
 
-type CurrentAccountStates = dict[str, AccountState]
+type CurrentAccountValues = dict[str, AccountValue]
 '''
-The current state of the accounts in the timeline.
+The current values of the accounts in the timeline.
 '''
 
 @dataclass
@@ -42,8 +43,8 @@ class TimelineStep:
     '''
     date: date
     schedule: 'sch.Schedule'
-    accounts: TimelineAccountStates
-    values: CurrentAccountStates
+    states: TimelineAccountStates
+    values: CurrentAccountValues
 
 class TimelineSeries(Generator[TimelineStep, None, NoReturn]):
     '''
@@ -57,13 +58,27 @@ class TimelineSeries(Generator[TimelineStep, None, NoReturn]):
     timeline: 'Timeline'
 
 type TimelineUpdateHandler = Callable[[TimelineStep], None]
-'''
-A function that updates the accounts in the timeline. These are pulled from the
-schedule once per month. They may re-add themselves if they are recurring.
+class TimelineUpdateHandler(Protocol):
+    '''
+    A function that updates the accounts in the timeline. These are pulled from the
+    schedule once per month. They may re-add themselves if they are recurring.
 
-They are responsible for updating the accounts in the timeline, and may also
-modify the schedule.
-'''
+    They are responsible for updating the accounts in the timeline, and may also
+    modify the schedule.
+    '''
+    @abstractmethod
+    def __call__(self, step: TimelineStep, /) -> None:
+        '''
+        The signature for the user-defined event functions, after applying
+        the decorator but before being configured onto the schedule with specific
+        configuration parameters.
+
+        PARAMETERS
+        ----------
+        step: TimelineStep
+            The current step in the timeline.
+        '''
+
 
 if TYPE_CHECKING:
     import pplt.schedule as sch

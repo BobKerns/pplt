@@ -6,12 +6,12 @@ with two accounts and an amount.
 
 from datetime import datetime
 
-from pplt.account import AccountState
+from pplt.account import AccountValue
 from pplt.decorators import transaction
 
 
 @transaction()
-def transfer(date: datetime, from_state: AccountState, to_state: AccountState, /,
+def transfer(date: datetime, from_state: AccountValue, to_state: AccountValue, /,
             amount: float):
     """
     Transfer a fixed amount of money between accounts.
