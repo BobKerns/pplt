@@ -98,7 +98,7 @@ def test_schedule(sequence):
             case ('fail', 'run', date_):
                 date_ = parse_month(date_)
                 with pytest.raises(ValueError):
-                    for step_date, f in sch.run(date_):
+                    for _, _ in sch.run(date_):
                         pass
             case _:
                 raise ValueError(f'Invalid test step: {entry}')

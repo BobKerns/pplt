@@ -73,3 +73,7 @@ class Schedule:
         self.__last_run = date_
         while self.__events and self.__events[0][0] <= date_:
             yield heappop(self.__events)
+
+    def __repr__(self):
+        return f'Schedule({sorted(self.events)}, last_run={self.__last_run})'
+    

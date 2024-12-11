@@ -2,7 +2,6 @@
 Test cases for decorators.py
 '''
 
-from calendar import month
 from datetime import date
 from inspect import signature, Parameter, _empty
 from typing import Optional
@@ -12,7 +11,6 @@ from pytest import approx
 from pplt.dates import parse_month
 from pplt.decorators import event, transaction
 from pplt.account import Account, AccountValue
-from pplt.interest import monthly_rate
 from pplt.schedule import Schedule
 from pplt.timeline import TimelineStep, TimelineAccountStates
 
@@ -65,7 +63,7 @@ def test_event_signatures():
 
     sig1 = signature(interest)
     assert str(sig1.return_annotation) == 'TimelineUpdateHandler'
-    assert sig1.parameters['name'].annotation == str
+    assert sig1.parameters['name'].annotation is str
     assert sig1.parameters['name'].kind == Parameter.POSITIONAL_ONLY
     assert sig1.parameters['start'].annotation == Optional[date|str]
     assert sig1.parameters['name'].kind == Parameter.POSITIONAL_ONLY
@@ -77,7 +75,7 @@ def test_event_signatures():
     sig2 = signature(f2)
     params = list(sig2.parameters)
     param0 = params[0]
-    str(sig2.parameters[param0].annotation) == 'TimelineStep'
+    assert str(sig2.parameters[param0].annotation) == 'TimelineStep'
     assert sig2.parameters[param0].kind == Parameter.POSITIONAL_ONLY
     assert sig2.return_annotation == _empty
     assert f2.__doc__ == 'Calculate interest on an account.'
@@ -124,9 +122,9 @@ def test_transaction():
     sig1 = signature(transfer)
     assert str(sig1.return_annotation) == 'TimelineUpdateHandler'
     params = list(sig1.parameters)
-    assert sig1.parameters[params[0]].annotation == str
+    assert sig1.parameters[params[0]].annotation is str
     assert sig1.parameters[params[0]].kind == Parameter.POSITIONAL_ONLY
-    assert sig1.parameters[params[1]].annotation == str
+    assert sig1.parameters[params[1]].annotation is str
     assert sig1.parameters[params[1]].kind == Parameter.POSITIONAL_ONLY
     assert sig1.parameters[params[2]].annotation == Optional[date|str]
     assert sig1.parameters[params[2]].kind == Parameter.POSITIONAL_ONLY
@@ -137,7 +135,7 @@ def test_transaction():
     sig2 = signature(f2)
     params = list(sig2.parameters)
     param0 = params[0]
-    str(sig2.parameters[param0].annotation) == 'TimelineStep'
+    assert str(sig2.parameters[param0].annotation) == 'TimelineStep'
     assert sig2.parameters[param0].kind == Parameter.POSITIONAL_ONLY
     assert sig2.return_annotation == _empty
 

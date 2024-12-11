@@ -64,7 +64,7 @@ def months(start: Optional[date|str]=None) -> Iterable[date]:
     date: date
         The next date in the series.
     '''
-    if start is None:
+    if start is None:  # noqa: SIM108
         date_ = next_month()
     else:
         date_ = parse_month(start)
@@ -97,7 +97,10 @@ def months_str(start: Optional[date|str]=None,
     """
     if start is None:
         start = next_month()
-    series = (t.strftime('%y/%m') for t in months(start=start))
+    series = (
+        t.strftime('%y/%m')
+        for t in months(start=start)
+    )
     if end is None:
         return series
     return islice(series, 0, end, stride)
