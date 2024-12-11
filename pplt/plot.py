@@ -5,17 +5,18 @@ Terminal plotting utilities for pplt
 import sys
 from collections.abc import Collection, Iterable, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date
 from itertools import chain, count, islice, tee
 from math import ceil, floor
-from typing import Iterator, Literal, Optional
+from typing import Literal, Optional
 
 import plotext as plt
 
 from pplt.dates import (
-    months, next_month, parse_month, unparse_month, parse_end,
+    months, parse_month, unparse_month, parse_end,
 )
-from pplt.utils import dict_split, take
+from pplt.timeline import Timeline, TimelineSeries
+from pplt.utils import attr_split, dict_split, take
 
 
 def choose_stride(ymin: float, ymax: float):
@@ -80,8 +81,8 @@ class SubPlot:
     x: int
     y: int
     series: Sequence[Iterable[float]]
-    start: datetime|None = None
-    end: int|str|datetime = 12
+    start: date|None = None
+    end: int|str|date = 12
     months: int=0
     title: Optional[str] = None
     labels: Iterable[str] = ()
@@ -92,8 +93,8 @@ class SubPlot:
 def subplot(x: int, # Position of plot
             y: int,
             *series: Sequence[Iterable[float]],
-            start: Optional[datetime]=None,
-            end: Optional[int|str|datetime]=None,
+            start: Optional[date]=None,
+            end: Optional[int|str|date]=None,
             title: Optional[str]=None,
             labels: Iterable[str]=(),
             colors: Iterable[Color] = (),
@@ -143,8 +144,8 @@ def subplot(x: int, # Position of plot
 
 def multiplot(*subplots: SubPlot,
               title: Optional[str]=None,
-              start: datetime=next_month(),
-              end: int|str|datetime=12,
+              start: Optional[date|str]=None,
+              end: int|str|date=12,
               colors: Iterable[Color] = (),
               figure=plt,
               show: bool=True,
@@ -159,9 +160,9 @@ def multiplot(*subplots: SubPlot,
         The subplots to plot.
     title: Optional[str]
         Title of the figure.
-    start: datetime
+    start: Optional[date]
         Starting date. Applies to all subplots by default.
-    end: int|str|datetime
+    end: int|str|date
         End date, or Number of months to plot.
         Applies to all subplots by default.
     colors: Iterable[Color]
@@ -169,6 +170,7 @@ def multiplot(*subplots: SubPlot,
     figure: plt
         The figure object to plot on.
     """
+    start = parse_month(start)
     colors = chain(colors, color_series())
     labels = (f'Series-{i}' for i in count(1))
     xmax: int = 0
@@ -204,9 +206,9 @@ def multiplot(*subplots: SubPlot,
 
 def plt_by_month(
         *series: Iterable[float],
-        start: datetime|str=next_month(),
-        time: Iterable[datetime]=(),
-        end: datetime|int|str=12,
+        start: Optional[date|str] = None,
+        time: Iterable[date]=(),
+        end: date|int|str=12,
         title: Optional[str]=None,
         labels: Iterable[str]=(),
         colors: Iterable[Color]=(),
@@ -269,8 +271,8 @@ def plt_by_month(
         _ymax = max(_ymax, max(y))
         figure.plot(x, y, label=lbl, color=clr, marker='hd')
     ymin, ymax = (*ylim, None, None)[:2]
-    ymin = _ymin if ymin is None else ymin
-    ymax = _ymax if ymax is None else ymax
+    ymin = float(_ymin) if ymin is None else float(ymin)
+    ymax = float(_ymax) if ymax is None else float(ymax)
     if ymin * ymax < 0:
         figure.hline(0, color='gray')
     r = choose_stride(ymin, ymax)
@@ -294,8 +296,8 @@ def plt_by_month(
     return None
 
 
-def plt_timeline(timeline: Iterator[dict[str, float]],
-                 end: int|str|datetime=12,
+def plt_timeline(timeline: TimelineSeries|Timeline,
+                 end: int|str|date=12,
                  title: Optional[str]=None,
                  colors: Iterable[Color]=(),
                  ylim: tuple[float|None,...]=(),
@@ -311,7 +313,7 @@ def plt_timeline(timeline: Iterator[dict[str, float]],
 
     PARAMETERS
     ----------
-    timeline: Iterator[dict[str, float]]
+    timeline: TimelineSeries|Timeline
         A timeline of values.
     end: int|str|datetime
         The ending date, or the number of months to print.
@@ -333,19 +335,26 @@ def plt_timeline(timeline: Iterator[dict[str, float]],
         Whether to wait for user input.
 
     """
-    values = dict_split(timeline)
-    time = values.pop('TIME')
-    del values['ACCOUNTS']
-    del values['START']
-    labels = values.keys()
+    match timeline:
+        case TimelineSeries():
+            pass
+        case Timeline():
+            timeline = iter(timeline)
+
+    date_, values = attr_split(timeline, 'date', 'values')
+    header, body = tee(values, 2)
+    first = next(header)
+    # Get the labels from the first value.
+    # Uppercase the first letter of each label if it's all lowercase.
+    labels = [
+        lbl.capitalize() if lbl.islower() else lbl
+        for lbl in first
+    ]
     if not include:
         include = labels
-    series = [
-        s for k, s in values.items()
-        if k in include and k not in exclude
-     ]
+    series = dict_split(body).values()
     plt_by_month(*series,
-               time=time,
+               time=date_,
                end=end,
                title=title,
                labels=labels,

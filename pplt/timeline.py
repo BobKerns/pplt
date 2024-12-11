@@ -4,7 +4,7 @@ for each account, on a monthly basis.
 '''
 
 from abc import abstractmethod
-from collections.abc import Iterable, Callable, Generator
+from collections.abc import Iterable, Generator
 from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import TYPE_CHECKING, ClassVar, NoReturn, Optional, Protocol
@@ -57,7 +57,6 @@ class TimelineSeries(Generator[TimelineStep, None, NoReturn]):
     '''
     timeline: 'Timeline'
 
-type TimelineUpdateHandler = Callable[[TimelineStep], None]
 class TimelineUpdateHandler(Protocol):
     '''
     A function that updates the accounts in the timeline. These are pulled from the
@@ -139,7 +138,7 @@ class Timeline:
                 # deviate from how the real world usually works, with a reconciliation
                 # step, usually daily rather than monthly, applying all the updates
                 # at once.
-                for step_date, event in self.schedule.run(date_):
+                for step_date, event in schedule.run(date_):
                     assert step_date <= date_
                     assert step_date >= step_date
                     if step_date > step.date:
