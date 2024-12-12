@@ -2,7 +2,7 @@
 Accounts
 '''
 
-from typing import Literal
+from typing import ClassVar, Literal
 from functools import total_ordering
 
 type AccountStatus = Literal['open', 'closed', 'future']
@@ -25,6 +25,8 @@ class AccountValue:
     You can multiply or divide a `AccountValue` object by a float or int, but you
     can't multiply or divide two `AccountValue` objects.
     '''
+
+    __match_args__: ClassVar[tuple[str, ...]] = ('balance', 'status')
 
     __balance: float
     @property
@@ -55,6 +57,8 @@ class AccountValue:
         return self.status == 'open' and self.balance != 0.0
 
     def __float__(self):
+        if self.status != 'open':
+            return 0.0
         return float(self.balance)
 
     def __int__(self):
@@ -143,6 +147,9 @@ class AccountValue:
             case _:
                 return NotImplemented
 
+    def __repr__(self):
+        return f'AccountValue({self.balance}, {self.status})'
+
 
 class Account(AccountValue):
     '''
@@ -166,9 +173,9 @@ class Account(AccountValue):
         balance = self.balance
         status = self.status
         while True:
-            update = yield AccountValue(self, balance, status)
+            update = yield AccountValue(balance, status)
             match update:
-                case AccountValue(_, balance, status):
+                case AccountValue(balance, status):
                     balance = balance
                     status = status
                 case float(amount):

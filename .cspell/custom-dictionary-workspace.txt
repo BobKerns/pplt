@@ -11,6 +11,7 @@ multiplot
 myplot
 mypy
 mywrap
+ncols
 pecentage
 plotext
 plotsize
@@ -19,6 +20,7 @@ pplt
 pytest
 pyupgrade
 pyyaml
+subiterators
 timedelta
 venv
 xlabels
