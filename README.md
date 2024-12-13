@@ -42,12 +42,31 @@ git clone <url>
 cd <project_name>
 ```
 
-## Create a virtual environment
+## Install python 3.13
+
+3.10 is near end-of-life. 3.11 is security-patch-only.
+
+Installing 3.13 will not uninstall or replace earlier versions.
+
+## Install `uv`
 
 ```bash
-python3 -m venv .venv
+pip install -c constraints.txt uv
+```
+
+`uv` is replaces `pip` and `poetry`. It is MUCH faster and has other advantages
+as well.
+
+## Set up virtual environment and install dependencies
+
+```bash
+cd pplt
+uv sync
 source .venv/bin/activate
 ```
+
+(That's it. `uv sync` creates the virtual environment as well as installing
+dependencies).
 
 ## What is here so far
 

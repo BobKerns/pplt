@@ -4,6 +4,8 @@
 *\#
 *.tmp
 *.bak
+*.save
+*.old
 
 .venv/
 *.env
