@@ -5,6 +5,7 @@ contine
 direnv
 envrc
 hline
+httpx
 islice
 isort
 itertools
