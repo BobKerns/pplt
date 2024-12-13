@@ -3,7 +3,6 @@ Terminal table printer
 '''
 
 
-from calendar import formatstring
 from collections.abc import Collection, Iterable
 from contextlib import suppress
 from datetime import date
@@ -52,10 +51,9 @@ def table(series: TimelineSeries|Timeline,
         for k, v in values.items()
         if k in include and k not in exclude
     }
-    labels = to_show.keys()
     # Limit the date range in case the series has no other
     # values to show.
-    series_table(islice(date_, 0, end), *to_show.values(),
+    return series_table(islice(date_, 0, end), *to_show.values(),
                 labels=('Months', *to_show.keys()),
                 formats=('%y/%m',),
                 prefixes=('',),
@@ -78,6 +76,124 @@ def series_table(*series: Iterable[float],
                     end=end,
                     )
 
+
+class Table:
+    '''
+    A table of values, ready to be printed
+    '''
+    __labels: list[str]
+    @property
+    def labels(self):
+        return self.__labels
+    @labels.setter
+    def labels(self, value):
+        self.__labels = value
+        self.__formatted_header = ''
+        self.__widths = []
+
+    __proto_formats: list[str]
+    __formats: list[str]
+    @property
+    def formats(self):
+        if not self.__formats:
+            self.__formats = [
+                fmt.format(width=w)
+                for fmt, w in zip(self.__proto_formats, self.widths)
+            ]
+        return self.__formats
+    @formats.setter
+    def formats(self, value):
+        self.__proto_formats = value
+        self.__formats = []
+    prefixes: list[str]
+    values: list[tuple[float, ...]]
+
+    __widths: list[int]
+    @property
+    def widths(self):
+        if not self.__widths:
+            # Calculate the column widths, starting with the labels in the header.
+            widths = widths = [len(c) for c in self.labels]
+            tmp_fmts =[fmt.format(width='') for fmt in self.__proto_formats]
+            # Calculate the column widths
+            for row in self:
+                for col, w, fmt, val in zip(count(), widths, tmp_fmts, row):
+                    widths[col] = max(w, len(f'{val:{fmt}}'))
+            self.__widths = widths
+        return self.__widths
+
+    @widths.setter
+    def widths(self, value):
+        self.__widths = value
+        # Clear out dependent values.
+        self.__formatted_header = ''
+        self.__formats = []
+
+    __formatted_header: str = ''
+    @property
+    def formatted_header(self):
+        if not self.__formatted_header:
+            header = ' '.join(f'{lbl:^{w}}' for lbl, w in zip(self.labels, self.widths))
+            sep = ' '.join('-' * w for w in self.widths)
+            self.__formatted_header = f'{header}\n{sep}'
+        return self.__formatted_header
+
+    values: list[tuple[float, ...]]
+
+    def __init__(self, labels, formats, prefixes, ncols, values, end):
+        self.labels = labels
+        self.prefixes = prefixes
+        self.ncols = ncols
+        self.values = values
+        self.end = end
+        self.formats = formats
+        self.__widths = []
+        self.formats = [fmt.format(width=w)
+                        for fmt, w in zip(self.formats, self.widths)]
+
+    def __getitem__(self, i: int):
+        def extract_columns(row, c):
+            match c:
+                case int()|slice():
+                    return row[c]
+                case tuple():
+                    return tuple(row[i] for i in c)
+                case str():
+                    return row[self.labels.index(c)]
+                case _:
+                    return NotImplemented
+        match i:
+            case int():
+                return self.values[i]
+            case slice():
+                return self.values[i]
+            case (tuple(),):
+                return [self.values[idx] for idx in i]
+            case (int(rowid), int(colid)|slice(colid)|str(colid)|tuple(colid)):
+                row = self.__getitem__(rowid)
+                return extract_columns(row, colid)
+            case (slice(rowspec)|tuple(rowspec),
+                  int(colid)|slice(colid)|str(colid)|tuple(colid)):
+                rows = self.__getitem__(rowspec)
+                return [extract_columns(row, colid) for row in rows]
+            case _:
+                return NotImplemented
+
+    def __iter__(self):
+        return iter(self.values)
+
+    def __len__(self):
+        return len(self.values)
+
+    def format_row(self, row):
+        return ' '.join(f'{prefix}{v:{fmt}}'
+                        for v, fmt, prefix in zip(row, self.formats, self.prefixes)
+                        )
+
+    def __repr__(self):
+        return self.formatted_header + '\n' + '\n'.join(self.format_row(row)
+                                                        for row in self)
+
 def tuple_table(values: Iterable[tuple[float, ...]], /,
                     end: int=12,
                     labels: Collection[str]=(),
@@ -95,51 +211,34 @@ def tuple_table(values: Iterable[tuple[float, ...]], /,
         The number of months to print.
     labels: Collection[str]
         The labels for the columns. Defaults to 'Series-1', 'Series-2', etc.
+    formats: Iterable[str]
+        The format strings for the columns. Defaults to '{width}.2f'.
+    prefixes: Iterable[str]
+        The prefixes for the columns. Defaults to '$'.
     '''
 
     # extend the sequence of labels if needed.
-    labels = chain(labels, repeat(''))
-    labels = (lbl if lbl else f'Series-{i+1}' for i, lbl in enumerate(labels))
-    labels = (lbl.capitalize() if lbl.islower() else lbl for lbl in labels)
+    labels_ = chain(labels, repeat(''))
+    labels_ = (
+        lbl if lbl else f'Series-{i+1}'
+        for i, lbl in enumerate(labels_)
+    )
+    labels_ = (
+        lbl.capitalize() if lbl.islower() else lbl
+        for lbl in labels_
+    )
 
-    formats = chain(formats, repeat('>{width}.2f'))
-    prefixes = chain(prefixes, repeat('$'))
+    formats_ = chain(formats, repeat('>{width}.2f'))
+    prefixes_ = chain(prefixes, repeat('$'))
+    values_ = iter(values)
+    tbl_values = take(end, values_)
 
     # Limit the number of rows
-    values = islice(values, 0, end)
-
-    # Copy the various iterators to allow multiple passes.
-    peek, head, body = tee(iter(values), 3)
-
     # Get the first row to determine the number of columns.
-    first = next(peek)
+    first = tbl_values[0]
     ncols = len(first)
-    labels = take(ncols, labels)
-    formats = take(ncols, formats)
-    prefixes = take(ncols, prefixes)
 
-    # Calculate the column widths, starting with the labels in the header.
-    widths = [len(c) for c in labels]
-    for r, row in enumerate(head):
-        for i, (v, fmt, prefix) in enumerate(zip(row, formats, prefixes)):
-            fmt = fmt.format(width='')
-            widths[i] = max(widths[i], len(f'{prefix}{v:{fmt}}'))
-
-    # Print the header.
-    last = len(labels) - 1
-    for i, lbl in enumerate(labels):
-        sep = '\n' if i == last else ' '
-        w = widths[i]
-        print(f'{lbl:^{w}}', end=sep)
-
-    for i, w in enumerate(widths):
-        sep = '\n' if i == last else ' '
-        print('-' * w, end=sep)
-
-    # Go through the rows and print the values.
-    for row in body:
-        for i, (v, fmt, prefix) in enumerate(zip(row, formats, prefixes)):
-            sep = '\n' if i == last else ' '
-            fmt = fmt.format(width=widths[i])
-            print(f'{prefix}{v:{fmt}}', end=sep)
-    return None
+    labels_ = take(ncols, labels_)
+    formats = take(ncols, formats_)
+    prefixes = take(ncols, prefixes_)
+    return Table(labels_, formats, prefixes, ncols, tbl_values, end)

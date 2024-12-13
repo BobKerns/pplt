@@ -28,7 +28,7 @@
     "editor.codeActionsOnSave": {
 
     },
-    "editor.defaultColorDecorators": false,
+    "editor.defaultColorDecorators": "never",
     "editor.experimentalWhitespaceRendering": "font",
     "editor.foldingImportsByDefault": true,
     "editor.guides.bracketPairs": false,

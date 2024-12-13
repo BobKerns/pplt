@@ -20,6 +20,7 @@ def take[T](n: int, x: Iterator[T]) -> list[T]:
     RETURNS
     -------
     list[T]
+        List wil be [] if the iterator is empty.
     """
     return list(islice(x, 0, n))
 
