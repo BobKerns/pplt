@@ -11,6 +11,13 @@ The status of an account. An account can be open, closed, or future.
 A `future` account is an account that will be open in the future.
 '''
 
+from rich.table import Table as RichTable
+from rich.console import Console, ConsoleOptions, RenderResult
+from rich.measure import Measurement
+COLOR=True
+
+from pplt.utils import console
+
 @total_ordering
 class AccountValue:
     '''
@@ -44,12 +51,15 @@ class AccountValue:
         if status not in ('open', 'closed', 'future'):
             raise ValueError(f'Invalid status: {status}')
         self.__status = status
-        self.__balance = balance
+        self.__balance = float(balance)
 
     def __format__(self, format_spec):
         match self.status:
             case 'open':
-                return f'{self.balance:{format_spec}}'
+                if COLOR:
+                    with console.capture() as capture_:  # type: ignore
+                        console.print(f'{self.balance:0.2f}', style='green')
+                    return capture_.get()
             case _:
                 return '--'
 
@@ -150,6 +160,29 @@ class AccountValue:
     def __repr__(self):
         return f'AccountValue({self.balance}, {self.status})'
 
+    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+        def balance(style: str):
+            grid = RichTable.grid(expand=True)
+            grid.add_column(max_width=1)
+            balance = f'{self.balance:.2f}'
+            grid.add_column(justify='right', max_width=len(balance))
+            grid.add_row('$', f'[{style}]{balance}[/]')
+            return grid
+        match self.status:
+            case 'open' if self.balance >= 0:
+                yield balance('blue')
+            case 'open':
+                yield balance('red')
+            case _:
+                return '[grey]--[/]'
+
+    def __rich_measure__(self, console: Console, options: ConsoleOptions):
+        match self.status:
+            case 'open':
+                vlen = len(f'{self.balance:.2f}') + 1
+            case '_':
+                vlen = 2
+        return Measurement(vlen, vlen)
 
 class Account(AccountValue):
     '''
@@ -195,3 +228,19 @@ class Account(AccountValue):
                 case _:
                     raise ValueError(f'Invalid update: {update}')
 
+    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+        grid= RichTable.grid(expand=False)
+        grid.add_column(justify='left')
+        grid.add_column(justify='left', style='bold')
+        grid.add_column(justify='left')
+        grid.add_column(justify='right')
+        grid.add_column(justify='right')
+        match self.status:
+            case 'open':
+                grid.add_row('<acct ', self.name,  ': ', *super().__rich_console__(console, options), '>')
+            case _:
+                grid.add_row('<acct ', self.name,  ': ', self.status, '>')
+        yield grid
+
+    def __repr__(self):
+        return f'{type(self).__name__}({self.name}, {self.balance}, {self.status})'

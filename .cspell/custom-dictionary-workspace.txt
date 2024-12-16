@@ -1,9 +1,11 @@
 # Custom Dictionary Words
+colid
 colorama
 contine
 direnv
 envrc
 hline
+httpx
 islice
 isort
 itertools
@@ -17,13 +19,18 @@ plotext
 plotsize
 pltext
 pplt
+procs
 pytest
 pyupgrade
 pyyaml
+renderable
+rowspec
 subiterators
 timedelta
 venv
+vlen
 xlabels
+xonsh
 xticks
 ylabels
 ylim
