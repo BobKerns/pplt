@@ -6,6 +6,10 @@ from itertools import islice, tee
 from collections.abc import Hashable, Iterable, Iterator
 from typing import Any, Optional, overload
 
+from rich.console import Console
+
+console = Console()
+
 def take[T](n: int, x: Iterator[T]) -> list[T]:
     """
     Take n from an iterator.

@@ -2,21 +2,46 @@
 Terminal table printer
 '''
 
-
+import sys
 from collections.abc import Collection, Iterable
 from contextlib import suppress
 from datetime import date
 from itertools import chain, count, repeat, tee, islice
 
+from rich.table import Table as RichTable
+from rich.pretty import install as install_rich
+from rich.protocol import is_renderable
+
 from pplt.dates import next_month, parse_end
 from pplt.timeline import Timeline, TimelineSeries
 from pplt.utils import take, attr_split, dict_split
+
+RICH_TABLE=True
+'''
+Use Rich to print tables.
+'''
+
+if RICH_TABLE:
+    if sys.displayhook and sys.displayhook.__name__ == 'wrap_displayhook':
+        # Already installed
+        pass
+    else:
+        old_hook = sys.displayhook
+        install_rich()
+        rich_hook = sys.displayhook
+
+        def wrap_displayhook(val):
+            if type(val).__module__ == 'xonsh.procs.pipelines':
+                return old_hook(val)
+            return rich_hook(val)
+        sys.displayhook = wrap_displayhook
 
 
 def table(series: TimelineSeries|Timeline,
           include: Collection[str]=(),
           exclude: Collection[str]=(),
           end: int|str|date=12,
+          formats: Iterable[str]=(),
           ):
     """
     Print a table of values.
@@ -54,16 +79,14 @@ def table(series: TimelineSeries|Timeline,
     # Limit the date range in case the series has no other
     # values to show.
     return series_table(islice(date_, 0, end), *to_show.values(),
-                labels=('Months', *to_show.keys()),
-                formats=('%y/%m',),
-                prefixes=('',),
+                labels=('Month', *to_show.keys()),
+                formats=chain(('%y/%m',), formats),
                 end=end,
             )
 
 def series_table(*series: Iterable[float],
                 labels: Collection[str]=(),
                 formats: Iterable[str] = (),
-                prefixes: Iterable[str] = (),
                 end: int=12,
                  ):
     '''
@@ -72,7 +95,6 @@ def series_table(*series: Iterable[float],
     return tuple_table(zip(*series),
                     labels=labels,
                     formats=formats,
-                    prefixes=prefixes,
                     end=end,
                     )
 
@@ -105,7 +127,6 @@ class Table:
     def formats(self, value):
         self.__proto_formats = value
         self.__formats = []
-    prefixes: list[str]
     values: list[tuple[float, ...]]
 
     __widths: list[int]
@@ -140,9 +161,8 @@ class Table:
 
     values: list[tuple[float, ...]]
 
-    def __init__(self, labels, formats, prefixes, ncols, values, end):
+    def __init__(self, labels, formats, ncols, values, end):
         self.labels = labels
-        self.prefixes = prefixes
         self.ncols = ncols
         self.values = values
         self.end = end
@@ -186,8 +206,8 @@ class Table:
         return len(self.values)
 
     def format_row(self, row):
-        return ' '.join(f'{prefix}{v:{fmt}}'
-                        for v, fmt, prefix in zip(row, self.formats, self.prefixes)
+        return ' '.join(f'{v:{fmt}}'
+                        for v, fmt in zip(row, self.formats)
                         )
 
     def __repr__(self):
@@ -198,7 +218,6 @@ def tuple_table(values: Iterable[tuple[float, ...]], /,
                     end: int=12,
                     labels: Collection[str]=(),
                     formats: Iterable[str] = (),
-                    prefixes: Iterable[str] = (),
                     ):
     '''
     Print a table of values from multiple series packaged as an iterable of tuples.
@@ -229,7 +248,6 @@ def tuple_table(values: Iterable[tuple[float, ...]], /,
     )
 
     formats_ = chain(formats, repeat('>{width}.2f'))
-    prefixes_ = chain(prefixes, repeat('$'))
     values_ = iter(values)
     tbl_values = take(end, values_)
 
@@ -240,5 +258,19 @@ def tuple_table(values: Iterable[tuple[float, ...]], /,
 
     labels_ = take(ncols, labels_)
     formats = take(ncols, formats_)
-    prefixes = take(ncols, prefixes_)
-    return Table(labels_, formats, prefixes, ncols, tbl_values, end)
+
+    if RICH_TABLE:
+        # We wish we could let Rich handle the width calculations.
+        # But we can't. So we have to do it ourselves.
+        our_table = Table(labels_, formats, ncols, tbl_values, end)
+        widths = our_table.widths
+        formats = [fmt.format(width='') for fmt in formats]
+        table = RichTable(expand=False)
+        for lbl, width in zip(labels_, widths):
+            table.add_column(lbl, justify='center', style='bold', header_style='bold',)
+        for row in tbl_values:
+            cells = (v if is_renderable(v) else f'{v:{fmt}}'
+                     for v, fmt in zip(row, formats))
+            table.add_row(*cells)
+        return table
+    return Table(labels_, formats, ncols, tbl_values, end)
