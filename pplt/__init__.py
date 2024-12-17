@@ -3,7 +3,7 @@ Module to model retirement finances.
 '''
 
 from pplt.account import (
-    Account, AccountType, AccountStatus, AccountValue,
+    Account, AccountStatus, AccountValue,
     DEFAULT_CURRENCY,
 )
 from pplt.currency import Currency, CURRENCIES
@@ -36,7 +36,6 @@ from pplt.utils import (
 
 __all__ = [
     'Account',
-    'AccountType',
     'AccountStatus',
     'AccountUpdate',
     'AccountValue',
