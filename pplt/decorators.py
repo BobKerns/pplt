@@ -144,7 +144,7 @@ def event(period: Optional[tuple[str, int]|timedelta]=None):
                 account = step.states[name]
                 value = step.values[name]
                 update = func(date_, account, value, **kwargs)
-                account.send(update)
+                account.send(float(update))
                 # Re-add the event if it is recurring.
                 if period:
                     step.schedule.add(date_ + period, wrapper)
@@ -276,9 +276,8 @@ def transaction(period: Optional[tuple[str, int]|timedelta]=None):
                 to_value = step.values[to_]
                 update = func(date, from_value, to_value,
                               **kwargs)
-                if not isinstance(update, float):
-                    raise ValueError('Transaction update must be a float.')
                 if update is not None:
+                    update = float(update)
                     from_account.send(-update)
                     to_account.send(update)
                 # Re-add the event if it is recurring.

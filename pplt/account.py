@@ -197,7 +197,7 @@ class AccountValue:
             grid.add_column(max_width=1)
             balance = f'{self.balance:{fmt}}'
             grid.add_column(justify='right', max_width=len(balance))
-            grid.add_row(f'[{style}]{sym[/]', f'[{style}]{balance}[/]')
+            grid.add_row(f'[{style}]{sym}[/]', f'[{style}]{balance}[/]')
             return grid
         match self.status:
             case 'open' if self.balance >= 0:
