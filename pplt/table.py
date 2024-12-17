@@ -6,7 +6,7 @@ import sys
 from collections.abc import Collection, Iterable
 from contextlib import suppress
 from datetime import date
-from itertools import chain, count, repeat, tee, islice
+from itertools import chain, repeat, tee, islice
 
 from rich.table import Table as RichTable
 from rich.pretty import install as install_rich
@@ -103,6 +103,23 @@ class Table:
     '''
     A table of values, ready to be printed
     '''
+    __rich_table: RichTable|None
+    @property
+    def rich_table(self):
+        if self.__rich_table is None:
+            table = RichTable(expand=False)
+            for lbl in self.labels:
+                table.add_column(lbl, justify='center',  header_style='bold',)
+            for row in self.values:
+                cells = (v if is_renderable(v) else f'{v:{fmt}}'
+                         for v, fmt in zip(row, self.formats))
+                table.add_row(*cells)
+            self.__rich_table = table
+        return self.__rich_table
+
+    def __rich__(self):
+        return self.rich_table
+
     __labels: list[str]
     @property
     def labels(self):
@@ -110,54 +127,18 @@ class Table:
     @labels.setter
     def labels(self, value):
         self.__labels = value
-        self.__formatted_header = ''
-        self.__widths = []
 
-    __proto_formats: list[str]
     __formats: list[str]
     @property
     def formats(self):
-        if not self.__formats:
-            self.__formats = [
-                fmt.format(width=w)
-                for fmt, w in zip(self.__proto_formats, self.widths)
-            ]
         return self.__formats
+
     @formats.setter
-    def formats(self, value):
-        self.__proto_formats = value
-        self.__formats = []
+    def formats(self, fmts: list[str]):
+        self.__rich_table = None
+        self.__formats = fmts
+
     values: list[tuple[float, ...]]
-
-    __widths: list[int]
-    @property
-    def widths(self):
-        if not self.__widths:
-            # Calculate the column widths, starting with the labels in the header.
-            widths = widths = [len(c) for c in self.labels]
-            tmp_fmts =[fmt.format(width='') for fmt in self.__proto_formats]
-            # Calculate the column widths
-            for row in self:
-                for col, w, fmt, val in zip(count(), widths, tmp_fmts, row):
-                    widths[col] = max(w, len(f'{val:{fmt}}'))
-            self.__widths = widths
-        return self.__widths
-
-    @widths.setter
-    def widths(self, value):
-        self.__widths = value
-        # Clear out dependent values.
-        self.__formatted_header = ''
-        self.__formats = []
-
-    __formatted_header: str = ''
-    @property
-    def formatted_header(self):
-        if not self.__formatted_header:
-            header = ' '.join(f'{lbl:^{w}}' for lbl, w in zip(self.labels, self.widths))
-            sep = ' '.join('-' * w for w in self.widths)
-            self.__formatted_header = f'{header}\n{sep}'
-        return self.__formatted_header
 
     values: list[tuple[float, ...]]
 
@@ -167,9 +148,6 @@ class Table:
         self.values = values
         self.end = end
         self.formats = formats
-        self.__widths = []
-        self.formats = [fmt.format(width=w)
-                        for fmt, w in zip(self.formats, self.widths)]
 
     def __getitem__(self, i: int):
         def extract_columns(row, c):
@@ -177,7 +155,7 @@ class Table:
                 case int()|slice():
                     return row[c]
                 case tuple():
-                    return tuple(row[i] for i in c)
+                    return tuple(extract_columns(row, i) for i in c)
                 case str():
                     return row[self.labels.index(c)]
                 case _:
@@ -189,13 +167,13 @@ class Table:
                 return self.values[i]
             case (tuple(),):
                 return [self.values[idx] for idx in i]
-            case (int(rowid), int(colid)|slice(colid)|str(colid)|tuple(colid)):
+            case (int(rowid), int()|slice()|str()|tuple()):
                 row = self.__getitem__(rowid)
-                return extract_columns(row, colid)
-            case (slice(rowspec)|tuple(rowspec),
-                  int(colid)|slice(colid)|str(colid)|tuple(colid)):
-                rows = self.__getitem__(rowspec)
-                return [extract_columns(row, colid) for row in rows]
+                return extract_columns(row, i[1])
+            case (slice()|tuple(),
+                  int()|slice()|str()|tuple()):
+                rows = self.__getitem__(i[0])
+                return [extract_columns(row, i[1]) for row in rows]
             case _:
                 return NotImplemented
 
@@ -205,14 +183,8 @@ class Table:
     def __len__(self):
         return len(self.values)
 
-    def format_row(self, row):
-        return ' '.join(f'{v:{fmt}}'
-                        for v, fmt in zip(row, self.formats)
-                        )
-
     def __repr__(self):
-        return self.formatted_header + '\n' + '\n'.join(self.format_row(row)
-                                                        for row in self)
+        return f'<Table of {','.join(self.labels)} {len(self)} rows>'
 
 def tuple_table(values: Iterable[tuple[float, ...]], /,
                     end: int=12,
@@ -247,7 +219,7 @@ def tuple_table(values: Iterable[tuple[float, ...]], /,
         for lbl in labels_
     )
 
-    formats_ = chain(formats, repeat('>{width}.2f'))
+    formats_ = chain(formats, repeat('>,.2f'))
     values_ = iter(values)
     tbl_values = take(end, values_)
 
@@ -258,19 +230,4 @@ def tuple_table(values: Iterable[tuple[float, ...]], /,
 
     labels_ = take(ncols, labels_)
     formats = take(ncols, formats_)
-
-    if RICH_TABLE:
-        # We wish we could let Rich handle the width calculations.
-        # But we can't. So we have to do it ourselves.
-        our_table = Table(labels_, formats, ncols, tbl_values, end)
-        widths = our_table.widths
-        formats = [fmt.format(width='') for fmt in formats]
-        table = RichTable(expand=False)
-        for lbl, width in zip(labels_, widths):
-            table.add_column(lbl, justify='center', style='bold', header_style='bold',)
-        for row in tbl_values:
-            cells = (v if is_renderable(v) else f'{v:{fmt}}'
-                     for v, fmt in zip(row, formats))
-            table.add_row(*cells)
-        return table
     return Table(labels_, formats, ncols, tbl_values, end)
