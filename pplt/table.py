@@ -3,10 +3,10 @@ Terminal table printer
 '''
 
 import sys
-from collections.abc import Collection, Iterable, Sequence
+from collections.abc import Collection, Iterable
 from contextlib import suppress
 from datetime import date
-from itertools import chain, repeat, tee, islice
+from itertools import chain, count, repeat, tee, islice
 from typing import Any, cast, overload
 
 from rich.console import RenderableType
@@ -14,7 +14,7 @@ from rich.table import Table as RichTable
 from rich.pretty import install as install_rich
 from rich.protocol import is_renderable
 
-from pplt.dates import next_month, parse_end
+from pplt.dates import next_month, parse_end, parse_month
 from pplt.timeline import Timeline, TimelineSeries
 from pplt.utils import take, attr_split, dict_split
 
@@ -46,7 +46,34 @@ def table(series: TimelineSeries|Timeline,
           formats: Iterable[str]=(),
           ):
     """
-    Print a table of values.
+    Print a `Table` of values.
+
+    A `Table` is a collection of values, with rows and columns,
+    with labels and formats for each column.
+
+    A `Table` can be indexed by row, or by row and column.
+
+    EXAMPLES:
+    ---------
+    >>> tbl[0]
+    (1.0, 2.0, 3.0)
+    >>> tbl[0, 1]
+    2.0
+    >>> tbl[0, 1:3]
+    (2.0, 3.0)
+    >>> tbl[0:2, 1:3]
+    Table of Series-2, Series-3 2 rows
+    >>> tbl[0:2, 'Series-2']
+    (2.0, 3.0)
+    >>> tbl[0:2, 'Series-2':]
+    Table of Series-2, Series-3 2 rows
+    >>> tbl[(0, 4),]
+    Table of rows 0 and 4, all columns. Note that the second comma is required.
+    >>> tbl[(0, 4), ('Series-2', 'Series-3)
+    Table of Series-2, Series-3 2 rows]
+
+    As a special case, if the first column is an ascending series of dates, the
+    row index may be a date or a string in the format 'yy/mm'.
 
     PARAMETERS
     ----------
@@ -100,18 +127,100 @@ def series_table(*series: Iterable[float],
                     end=end,
                     )
 
-type SingleRowIndex = int
-type MultiRowIndex = tuple[int, ...]|slice
-type RowOnlyIndex = SingleRowIndex|slice|tuple[tuple[SingleRowIndex,...]]
+type SingleRowIndex = int|str|date
+type RowSlice = slice[int|None,int|None,int|None]\
+    |slice[str|None,str|None,int|None]\
+    |slice[date|None,date|None,int|None]
+type MultiRowIndex = tuple[SingleRowIndex|RowSlice, ...]|RowSlice|list[bool]
+type MultiRowOnlyIndex = RowSlice|tuple[tuple[SingleRowIndex|RowSlice,...]]|list[bool]
+type RowOnlyIndex = SingleRowIndex|RowSlice|tuple[tuple[SingleRowIndex,...]]
 type SingleColIndex = int|str
-type MultiColIndex = tuple[int|str, ...]|slice
+type ColSlice = slice[int|None,int|None,int|None]\
+    |slice[str|None,str|None,int|None]
+type MultiColIndex = tuple[int|str|ColSlice, ...]|ColSlice|list[bool]
 type ColumnIndex = SingleColIndex|MultiColIndex
 type TableIndex = RowOnlyIndex\
+    |MultiRowOnlyIndex\
     |tuple[SingleRowIndex, SingleColIndex]\
     |tuple[MultiRowIndex, SingleColIndex]\
     |tuple[SingleRowIndex, MultiColIndex]\
     |tuple[MultiRowIndex, MultiColIndex]
 
+def flatten_cols(labels: list[str], cols: ColumnIndex) -> tuple[int, ...]:
+    '''
+    Flatten a column index into a tuple of integers.
+    '''
+    match cols:
+        case int():
+            return (cols,)
+        case str():
+            return (labels.index(cols),)
+        case slice():
+                start = labels.index(cols.start) if isinstance(cols.start, str) else (cols.start or 0)
+                stop = labels.index(cols.stop) if isinstance(cols.stop, str) else (cols.stop or len(labels))
+                step = cols.step or 1
+                return tuple(range(start, stop, step))
+        case tuple():
+            return tuple(c1
+                            for i in cols
+                            for c1 in flatten_cols(labels, i)
+                        )
+        case list():
+            return tuple(i for i in range(len(labels)) if cols[i])
+        case _: # type: ignore
+            raise ValueError(f'Invalid column index: {cols}')
+
+
+def find_row(labels: list[str], values: list[tuple[Any, ...]], rowid: str|date) -> int:
+    month = labels.index('Month')
+    match rowid:
+        case str():
+            rowid = parse_month(rowid)
+            return next(i for i, d in enumerate(values) if d[month] == rowid)
+        case date():
+            return next(i for i, d in enumerate(values) if d[month] == rowid)
+
+
+def extract_rows(labels: list[str],
+                 values: list[tuple[Any]],
+                 rows: MultiRowIndex|SingleRowIndex|list[bool],
+                 ) -> list[tuple[Any]]:
+    '''
+    Extract rows using row indices.
+    '''
+    match rows:
+        case int():
+            return [values[rows]]
+        case str()|date():
+            return [values[find_row(labels, values, rows)]]
+        case slice():
+                start = (
+                    find_row(labels, values, rows.start)
+                    if isinstance(rows.start, (str, date))
+                    else (rows.start or 0)
+                )
+                stop = (
+                    find_row(labels, values, rows.stop)
+                    if isinstance(rows.stop, (str, date))
+                    else len(values)
+                )
+                step = rows.step or 1
+                return [values[i] for i in range(start, stop, step)]
+        case tuple():
+            return [
+                    c1
+                    for i in rows
+                    for c1 in extract_rows(labels, values, i)
+                ]
+        case list():
+            return [
+                row
+                for i, row in enumerate(values)
+                if rows[i]
+            ]
+
+        case _: # type: ignore
+            raise ValueError(f'Invalid column index: {cols}')
 
 class Table:
     '''
@@ -126,6 +235,8 @@ class Table:
                 table.add_column(lbl, justify='center',  header_style='bold',)
             def cell(value: Any, fmt: str) -> RenderableType:
                 match value:
+                    case date():
+                        return f'{value:%y/%m}'
                     case _ if is_renderable(value):
                         return cast(RenderableType, value)
                     case float():
@@ -165,60 +276,102 @@ class Table:
         self.__rich_table = None
         self.__formats = fmts
 
-    values: list[tuple[float, ...]]
+    values: list[tuple[Any, ...]]
 
-    def __init__(self, labels: list[str], formats: list[str], ncols: int, values: list[tuple[float, ...]], end: int|str|date):
-        self.labels = labels
+    def __init__(self,
+                 labels: list[str],
+                 formats: list[str],
+                 ncols: int,
+                 values: list[tuple[Any, ...]],
+                 end: int|str|date):
         self.ncols = ncols
         self.values = values
         self.end = end
-        self.formats = formats
+        series = (f'Series-{i}' for i in count(len(labels)+1))
+        self.labels = list(islice(chain(labels, series), 0, ncols))
+        self.formats = list(islice(chain(formats, repeat('>,.2f')), 0, ncols))
 
-
+    def __eq__(self, other: Any):
+        if not isinstance(other, Table):
+            return NotImplemented
+        return self.labels == other.labels and self.values == other.values and self.formats == other.formats
 
     @overload
-    def __getitem__(self, i: RowOnlyIndex) -> tuple[Any]:...
+    def __getitem__(self, i: SingleRowIndex) -> tuple[Any]:...
+    @overload
+    def __getitem__(self, i: MultiRowOnlyIndex) -> 'Table':...
     @overload
     def __getitem__(self, i: tuple[SingleRowIndex, SingleColIndex]) -> Any:...
     @overload
-    def __getitem__(self, i: tuple[MultiRowIndex, SingleColIndex]) -> list[Any]:...
+    def __getitem__(self, i: tuple[MultiRowIndex, SingleColIndex]) -> 'Table':...
     @overload
     def __getitem__(self, i: tuple[SingleRowIndex, MultiColIndex]) -> tuple[Any, ...]:...
     @overload
-    def __getitem__(self, i: tuple[MultiRowIndex, MultiColIndex]) -> list[tuple[Any, ...]]:...
+    def __getitem__(self, i: tuple[MultiRowIndex, MultiColIndex]) -> 'Table':...
     def __getitem__(self, i: TableIndex) -> Any:
-        def extract_columns(row: Sequence[Any], c: int|slice|str|tuple[int|slice|str,...]) -> Any:
-            match c:
-                case int()|slice():
-                    return row[c]
-                case tuple():
-                    return tuple(extract_columns(row, i) for i in c)
-                case str():
-                    return row[self.labels.index(c)]
-                case _: # type: ignore
-                    return NotImplemented
+        def extract_columns(c: ColumnIndex) -> tuple[Any, list[str], list[str]]:
+            cols = flatten_cols(self.labels, c)
+            def extract(row: tuple[Any]):
+                return tuple(row[i] for i in cols)
+            return extract, [self.labels[i] for i in cols], [self.formats[i] for i in cols]
         match i:
             case int():
                 return self.values[i]
+            case str()|date():
+                return self.values[find_row(self.labels, self.values, i)]
             case slice():
-                return self.values[i]
+                return Table(
+                    labels=self.labels,
+                    formats=self.formats,
+                    ncols=self.ncols,
+                    values=self.values[i],
+                    end=self.end)
             case (tuple(i_),):
-                return [self.values[idx] for idx in i_]
-            case (int(rowid), int()|slice()|str()|tuple()):
-                row = self.__getitem__(rowid)
-                return extract_columns(row, i[1])
+                return Table(
+                    labels=self.labels,
+                    formats=self.formats,
+                    ncols=self.ncols,
+                    values=extract_rows(self.labels, self.values, i_),
+                    end=self.end)
             case (slice(),
                   int()|slice()|str()|tuple()):
-                rows = self.__getitem__(i[0])
-                return [extract_columns(row, i[1]) for row in rows]
-            case (tuple(r_),
+                rowid, colid = i
+                rows = self.__getitem__(rowid)
+                extract, labels, formats = extract_columns(colid)
+                new_rows = [extract(row) for row in rows]
+                return Table(
+                    labels=labels,
+                    formats=formats,
+                    ncols=len(labels),
+                    values=new_rows,
+                    end=self.end)
+            case (tuple(),
                   int()|slice()|str()|tuple()):
+                rowid, colid = i
                 rows = [
-                    r for s in r_
-                    for g in self.__getitem__(s) # TODO: Will fail on s = int()
+                    r for s in rowid
+                    for g in extract_rows(self.labels, self.values, s)
                     for r in g
                 ]
-                return [extract_columns(row, i[1]) for row in rows]
+                extract, labels, formats = extract_columns(colid)
+                new_rows = [extract(row) for row in rows]
+                return Table(
+                    labels=labels,
+                    formats=formats,
+                    ncols=len(labels),
+                    values=new_rows,
+                    end=self.end)
+            case (int(), int()|slice()|str()|tuple()):
+                rowid, colid = i
+                row = self.__getitem__(rowid)
+                extract, *_ = extract_columns(colid)
+                return extract(row)
+            case (str()|date(), int()|slice()|str()|tuple()):
+                rowid, colid = i
+                rowid = find_row(self.labels, self.values, rowid)
+                row = self.__getitem__(rowid)
+                extract, *_ = extract_columns(colid)
+                return extract(row)
             case _: # type: ignore
                 return NotImplemented
 
@@ -248,7 +401,7 @@ def tuple_table(values: Iterable[tuple[float, ...]], /,
     labels: Collection[str]
         The labels for the columns. Defaults to 'Series-1', 'Series-2', etc.
     formats: Iterable[str]
-        The format strings for the columns. Defaults to '{width}.2f'.
+        The format strings for the columns. Defaults to '>,.2f'.
     prefixes: Iterable[str]
         The prefixes for the columns. Defaults to '$'.
     '''
