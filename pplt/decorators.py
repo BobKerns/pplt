@@ -4,10 +4,12 @@ Decorators for the pplt package.
 
 from abc import abstractmethod
 from collections.abc import Callable
-from datetime import date, timedelta
+from datetime import date
+from types import NoneType
 from typing import Any, Protocol, TYPE_CHECKING
 
 from pplt.dates import next_month, parse_month
+from pplt.period import Periodic, PeriodUnit
 if TYPE_CHECKING:
     from pplt.account import AccountValue, AccountUpdate
     from pplt.timeline import (
@@ -89,7 +91,7 @@ def mywrap(func:  Callable[..., Any]) -> Callable[..., Any]:
         return wrapper
     return decorate
 
-def event(period: tuple[str, int]|timedelta|None=None):
+def event(period: tuple[int, PeriodUnit]|None=None):
     '''
     A decorator for financial events.
 
@@ -123,15 +125,21 @@ def event(period: tuple[str, int]|timedelta|None=None):
     sch.add(next_month(), interest('SAVINGS', rate=0.01))
     '''
 
-    if isinstance(period, tuple):
-        interval, amount = period
-        period = timedelta(**{interval: amount})
     def decorator(func: EventHandler) -> EventSpecifier:
         # This is what you call to create the event handler to add to the schedule.
+        outer_period = period
         @mywrap(func)
         def for_account(name: str, start: date|str|None=None, /,
+                        period: tuple[int, PeriodUnit]|None = outer_period,
                         **kwargs: Any) -> 'TimelineUpdateHandler':
             start = parse_month(start) if start else next_month()
+
+            if isinstance(period, tuple):
+                n, units = period
+                periodic: Periodic|NoneType = Periodic(start, n, units)
+            else:
+                periodic: Periodic|None = None
+            dates = iter(periodic) if periodic else iter([start])
             # The wrapper's signature is determined by the Timeline.
             # It calls the decorated function and updates the account state.
             @mywrap(func)
@@ -152,9 +160,12 @@ def event(period: tuple[str, int]|timedelta|None=None):
                         account.send(float(update))
                 # Re-add the event if it is recurring.
                 if period:
-                    step.schedule.add(date_ + period, wrapper)
+                    step.schedule.add(next(dates), wrapper)
+            wrapper.period = periodic
+            wrapper.fn = for_account
             return wrapper
         return for_account
+
     return decorator
 
 
@@ -218,7 +229,7 @@ class TransactionSpecifier(Protocol):
         '''
         ...
 
-def transaction(period: tuple[str, int]|timedelta|None=None):
+def transaction(period: tuple[int, PeriodUnit]|None=None):
     '''
     A decorator for financial transaction functions.
 
@@ -252,15 +263,18 @@ def transaction(period: tuple[str, int]|timedelta|None=None):
                 amount=100.00))
     '''
 
-    if isinstance(period, tuple):
-        interval, amount = period
-        period = timedelta(**{interval: amount})
     def decorator(func: TransactionHandler) -> TransactionSpecifier:
         # This is what you call to create the event handler to add to the schedule.
         @mywrap(func)
         def for_accounts(from_: str, to_: str, start: date|str|None=None, /,
                          **kwargs: Any) -> 'TimelineUpdateHandler':
             start = parse_month(start) if start else next_month()
+            if isinstance(period, tuple):
+                n, units = period
+                periodic: Periodic|NoneType = Periodic(start, n, units)
+            else:
+                periodic: Periodic|None = None
+            dates = iter(periodic) if periodic else iter([start])
             # The wrapper's signature is determined by the Schedule.
             # It calls the decorated function and updates the account states.
             @mywrap(func)
@@ -278,8 +292,10 @@ def transaction(period: tuple[str, int]|timedelta|None=None):
                 from_account.send(-update)
                 to_account.send(update)
                 # Re-add the event if it is recurring.
-                if period:
-                    step.schedule.add(date_ + period, wrapper)
+                if periodic:
+                    step.schedule.add(next(dates), wrapper)
             return wrapper
+            wrapper.period = period
+            wrapper.fn = for_account
         return for_accounts
     return decorator

@@ -16,6 +16,6 @@ def interest(date_: date, state: AccountValue, /,
     """
     Calculate interest on an account. e.g.:
 
-    schedule.add
+    schedule.add('21/1', interest, rate=0.01)
     """
     return state * monthly_rate(rate)
