@@ -44,6 +44,7 @@ plotsize
 pltext
 pplt
 procs
+pyright
 pytest
 pyupgrade
 pyyaml
