@@ -95,7 +95,7 @@ def rate_of_return(start_date: date|str, start_value: float,
                 with suppress(ValueError):
                     return datetime.strptime(date_, "%Y-%m-%d")
                 return parse_month(date_)
-            case _:
+            case _: # type: ignore
                 raise ValueError(f"Invalid date: {date_}")
     start_date = parse(start_date)
     end_date = parse(end_date)

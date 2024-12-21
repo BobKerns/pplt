@@ -3,21 +3,20 @@ Terminal plotting utilities for pplt
 '''
 
 import sys
-from collections.abc import Collection, Iterable, Sequence
+from collections.abc import Collection, Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from datetime import date
 from itertools import chain, count, islice, tee
 from math import ceil, floor
-from typing import Literal, Optional
+from typing import Any, Literal, Protocol, cast
 
-import plotext as plt
+import plotext as plt_
 
 from pplt.dates import (
     months, parse_month, unparse_month, parse_end,
 )
 from pplt.timeline import Timeline, TimelineSeries
 from pplt.utils import attr_split, dict_split, take
-
 
 def choose_stride(ymin: float, ymax: float):
     """
@@ -73,6 +72,41 @@ def color_series():
     return (c % 256 for c in count(112, 13))
 
 
+class Figure(Protocol):
+    def clear_figure(self):
+        ...
+    def theme(self, theme: str):
+        ...
+    def date_form(self, form: str):
+        ...
+    def subplots(self, x: int, y: int) -> 'Figure':
+        ...
+    def subplot(self, x: int, y: int) -> 'Figure':
+        ...
+    def title(self, title: str):
+        ...
+    def show(self):
+        ...
+    def plotsize(self, x: int, y: int):
+        ...
+    def tw(self) -> int:
+        ...
+    def th(self) -> int:
+        ...
+    def xticks(self, x: Iterable[Any], labels: Iterable[str]):
+        ...
+    def yticks(self, y: Iterable[Any], labels: Iterable[str]):
+        ...
+    def ylim(self, ymin: float, ymax: float):
+        ...
+    def hline(self, y: float, color: str):
+        ...
+    def plot(self, x: Iterable[Any], y: Iterable[Any], label: str, color: Color, marker: str):
+        ...
+
+plt = cast(Figure, plt_)
+
+
 @dataclass
 class SubPlot:
     '''
@@ -84,7 +118,7 @@ class SubPlot:
     start: date|None = None
     end: int|str|date = 12
     months: int=0
-    title: Optional[str] = None
+    title: str|None = None
     labels: Iterable[str] = ()
     colors: Iterable[Color] = ()
     ylim: tuple[float|None,...] = ()
@@ -92,10 +126,10 @@ class SubPlot:
 
 def subplot(x: int, # Position of plot
             y: int,
-            *series: Sequence[Iterable[float]],
-            start: Optional[date]=None,
-            end: Optional[int|str|date]=None,
-            title: Optional[str]=None,
+            *series: Iterable[float],
+            start: date|None=None,
+            end: int|str|date=12,
+            title: str|None=None,
             labels: Iterable[str]=(),
             colors: Iterable[Color] = (),
             ylim: tuple[float|None,...]=(),
@@ -143,11 +177,11 @@ def subplot(x: int, # Position of plot
 
 
 def multiplot(*subplots: SubPlot,
-              title: Optional[str]=None,
-              start: Optional[date|str]=None,
+              title: str|None=None,
+              start: date|str|None=None,
               end: int|str|date=12,
               colors: Iterable[Color] = (),
-              figure=plt,
+              figure: Figure=plt,
               show: bool=True,
               wait: bool=True,
               ):
@@ -186,7 +220,7 @@ def multiplot(*subplots: SubPlot,
         if sp.title:
             fig.title(sp.title)
         sp_labels = take(len(sp.series), chain(sp.labels, labels))
-        sp_colors = take(len(sp.series), chain(sp.colors, colors))
+        sp_colors = take(len(sp.series), cast(Iterator[Color], chain(sp.colors, colors)))
         plt_by_month(*sp.series,
                     start=sp.start or start,
                     end=sp.end or end,
@@ -206,14 +240,14 @@ def multiplot(*subplots: SubPlot,
 
 def plt_by_month(
         *series: Iterable[float],
-        start: Optional[date|str] = None,
+        start: date|str|None = None,
         time: Iterable[date]=(),
         end: date|int|str=12,
-        title: Optional[str]=None,
+        title: str|None=None,
         labels: Iterable[str]=(),
         colors: Iterable[Color]=(),
         ylim: tuple[float|None,...]=(),
-        figure=plt,
+        figure: Figure=plt,
         show: bool=True,
         wait: bool=True,
     ):
@@ -246,8 +280,8 @@ def plt_by_month(
         Whether to wait for user input.
     """
     start = parse_month(start)
-    labels = chain(labels, (f'Series-{i}' for i in count(len(labels)+1)))
-    colors = chain(colors, color_series())
+    labels = chain(labels, (f'Series-{i}' for i in count(len(series)+1)))
+    colors = cast(Iterator[Color], chain(colors, color_series()))
     if figure is plt:
         figure.clear_figure()
     if not wait and figure is plt:
@@ -256,10 +290,12 @@ def plt_by_month(
     figure.date_form('y/m')
     if not time:
         time = months(start=start)
-    time = (unparse_month(t) for t in time)
+    else:
+        time = iter(time)
+    time_ = (unparse_month(t) for t in time)
     end = parse_end(start, end)
     # Copy the time iterator for each usage (series, ticks, labels)
-    xticks, *data_x = tee(time, len(series)+1)
+    xticks, *data_x = tee(time_, len(series)+1)
     xticks = islice(xticks, 0, end + 1, ceil(end / 10))
     figure.xticks(*tee(xticks, 2))
     _ymin=sys.maxsize
@@ -298,13 +334,13 @@ def plt_by_month(
 
 def plt_timeline(timeline: TimelineSeries|Timeline,
                  end: int|str|date=12,
-                 title: Optional[str]=None,
+                 title: str|None=None,
                  colors: Iterable[Color]=(),
                  ylim: tuple[float|None,...]=(),
                  include: Collection[str]=(),
                  exclude: Collection[str]=(),
 
-                 figure=plt,
+                 figure: Figure=plt,
                  show: bool=True,
                  wait: bool=True,
                  ):

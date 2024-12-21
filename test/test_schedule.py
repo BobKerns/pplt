@@ -22,7 +22,8 @@ type ScheduleTestStep = tuple[Literal['run'], date|str, dict[date|str, int]] \
 type ScheduleTest = tuple[ScheduleTestStep, ...]
 
 class CallHandler:
-    counts: Counter
+    counts: Counter[date]
+    __name__ = 'CallHandler'
     def __init__(self):
         self.counts = Counter()
     def __call__(self, step: TimelineStep):
@@ -31,6 +32,7 @@ class CallHandler:
         assert isinstance(date_, date)
         assert date_.day == 1
         self.counts[date_] += 1
+
 
 tests: list[ScheduleTest] = [
     (("run", '22/01', {}),),
@@ -69,10 +71,10 @@ tests: list[ScheduleTest] = [
      ('run', '22/03', {"22/01": 1, '22/03': 1})),
 ]
 @pytest.mark.parametrize('sequence', tests)
-def test_schedule(sequence):
+def test_schedule(sequence: ScheduleTest):
     sch = Schedule()
     count = CallHandler()
-    counts = Counter()
+    counts: Counter[date] = count.counts
     states: TimelineAccountStates = {}
     values: CurrentAccountValues = {}
     for entry in sequence:
@@ -88,17 +90,16 @@ def test_schedule(sequence):
                     assert step_date == date_
                     f(step)
                 assert count.counts == expected
-            case 'reset',:
+            case 'reset':
                 counts.clear()
-            case ('add', date_):
+            case ('add', str(date_)):
                 sch.add(date_, count)
-            case ('fail', 'add', date_):
+            case ('fail', 'add', str(date_)):
                 with pytest.raises(ValueError):
                     sch.add(date_, count)
-            case ('fail', 'run', date_):
-                date_ = parse_month(date_)
+            case ('fail', 'run', str(date_)):
                 with pytest.raises(ValueError):
-                    for _, _ in sch.run(date_):
+                    for _, _ in sch.run(parse_month(date_)):
                         pass
-            case _:
+            case _: # pragma: no cover # type: ignore
                 raise ValueError(f'Invalid test step: {entry}')

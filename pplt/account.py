@@ -2,11 +2,12 @@
 Accounts
 '''
 
-from typing import ClassVar, Literal
+from collections.abc import Generator, Iterable
+from typing import Any, Literal, NoReturn, cast
 from functools import total_ordering
 
 from rich.table import Table as RichTable
-from rich.console import Console, ConsoleOptions, RenderResult
+from rich.console import Console, ConsoleOptions, RenderResult, RenderableType
 from rich.measure import Measurement
 
 from pplt.utils import console
@@ -45,7 +46,7 @@ class AccountValue:
     can't multiply or divide two `AccountValue` objects.
     '''
 
-    __match_args__: ClassVar[tuple[str, ...]] = ('balance', 'status')
+    __match_args__ = ('balance', 'status')
 
     __balance: float
     @property
@@ -59,9 +60,9 @@ class AccountValue:
         return self.__currency
 
 
-    __status: str = 'open'
+    __status: AccountStatus = 'open'
     @property
-    def status(self) -> str:
+    def status(self) -> AccountStatus:
         return self.__status
 
 
@@ -76,7 +77,7 @@ class AccountValue:
         self.__currency = currency
 
 
-    def __format__(self, format_spec):
+    def __format__(self, format_spec: str):
         match self.status:
             case 'open':
                 if COLOR:
@@ -85,6 +86,7 @@ class AccountValue:
                         sym = self.currency.symbol
                         console.print(f'{sym} {self.balance:{fmt}}', style='green')
                     return capture_.get()
+                return f'{self.currency.symbol} {self.balance:{self.currency.format}}'
             case _:
                 return '--'
 
@@ -102,19 +104,20 @@ class AccountValue:
     def __complex__(self):
         return complex(self.balance)
 
-    def __eq__(self, value):
+    def __eq__(self, value: Any):
         if self.status != 'open':
             return NotImplemented
         match value:
             case float(balance) | int(balance) | AccountValue(balance, 'open'):
                 return self.balance == balance
             case _:
-                return NotImplemented
+                # Handle pytest.approx!
+                 return value == self.balance
 
     def __hash__(self):
-        return hash((self.account, self.balance, self.status))
+        return hash((self.balance, self.status))
 
-    def __lt__(self, value):
+    def __lt__(self, value: Any):
         if self.status != 'open':
             return NotImplemented
         match value:
@@ -123,7 +126,7 @@ class AccountValue:
             case _:
                 return NotImplemented
 
-    def __add__(self, value):
+    def __add__(self, value: Any):
         if self.status != 'open':
             return NotImplemented
         match value:
@@ -132,10 +135,10 @@ class AccountValue:
             case _:
                 return NotImplemented
 
-    def __radd__(self, value):
+    def __radd__(self, value: Any):
         return self + value
 
-    def __sub__(self, value):
+    def __sub__(self, value: Any):
         if self.status != 'open':
             return NotImplemented
         match value:
@@ -144,10 +147,10 @@ class AccountValue:
             case _:
                 return NotImplemented
 
-    def __rsub__(self, value):
+    def __rsub__(self, value: Any):
         return -self + value
 
-    def __mul__(self, value):
+    def __mul__(self, value: Any):
         if self.status != 'open':
             return NotImplemented
         match value:
@@ -156,7 +159,7 @@ class AccountValue:
             case _:
                 return NotImplemented
 
-    def __rmul__(self, value):
+    def __rmul__(self, value: Any):
         return self * value
 
     def __neg__(self):  # -self
@@ -164,7 +167,7 @@ class AccountValue:
             return NotImplemented
         return -self.balance
 
-    def __truediv__(self, value):
+    def __truediv__(self, value: Any):
         if self.status != 'open':
             return NotImplemented
         match value:
@@ -173,7 +176,7 @@ class AccountValue:
             case _:
                 return NotImplemented
 
-    def __pow__(self, value):
+    def __pow__(self, value: Any):
         if self.status != 'open':
             return NotImplemented
         match value:
@@ -213,9 +216,12 @@ class AccountValue:
                 fmt = self.currency.format
                 sym = self.currency.symbol
                 vlen = len(f'{self.balance:{fmt}}') + len(sym)
-            case '_':
+            case _:
                 vlen = 2
         return Measurement(vlen, vlen)
+
+
+type AccountUpdate = AccountValue|float|AccountStatus|None
 
 class Account(AccountValue):
     '''
@@ -235,15 +241,15 @@ class Account(AccountValue):
         super().__init__(balance, status)
         self.name = name
 
-    def __iter__(self):
+    def __iter__(self)  -> Generator[AccountValue, AccountUpdate, NoReturn]:
         balance = self.balance
         status = self.status
         while True:
             update = yield AccountValue(balance, status)
             match update:
-                case AccountValue(balance, status):
-                    balance = balance
-                    status = status
+                case AccountValue(balance_, status_):
+                    balance = balance_
+                    status = status_
                 case float(amount):
                     match status:
                         case 'open':
@@ -253,9 +259,8 @@ class Account(AccountValue):
                             status = 'open'
                         case _:
                             raise ValueError(f'Invalid update: {update}')
-                    balance += amount
                 case str(new_status):
-                    status = new_status
+                    status = cast(AccountStatus, new_status)
                 case None:
                     pass
                 case _:
@@ -272,7 +277,7 @@ class Account(AccountValue):
         code = f' {self.currency}'
         match self.status:
             case 'open':
-                grid.add_row('<acct ', self.name,  ': ', *super().__rich_console__(console, options),
+                grid.add_row('<acct ', self.name,  ': ', *cast(Iterable[RenderableType], super().__rich_console__(console, options)),
                              code, '>')
             case _:
                 grid.add_row('<acct ', self.name,  ': ', self.status, code, '>')
@@ -286,4 +291,4 @@ class Account(AccountValue):
                 return f'<acct {self.name}: {self.status}, {self.currency}>'
 
     def __str__(self):
-        return self.__repr()
+        return self.__repr__()
