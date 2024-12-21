@@ -139,7 +139,9 @@ def event(period: tuple[int, PeriodUnit]|None=None):
                 periodic: Periodic|NoneType = Periodic(start, n, units)
             else:
                 periodic: Periodic|None = None
-            dates = iter(periodic) if periodic else iter([start])
+            dates = iter(periodic) if periodic else iter([start, start])
+            next(dates)
+            next(dates)
             # The wrapper's signature is determined by the Timeline.
             # It calls the decorated function and updates the account state.
             @mywrap(func)
@@ -274,7 +276,9 @@ def transaction(period: tuple[int, PeriodUnit]|None=None):
                 periodic: Periodic|NoneType = Periodic(start, n, units)
             else:
                 periodic: Periodic|None = None
-            dates = iter(periodic) if periodic else iter([start])
+            dates = iter(periodic) if periodic else iter([start, start])
+            next(dates)
+            next(dates)
             # The wrapper's signature is determined by the Schedule.
             # It calls the decorated function and updates the account states.
             @mywrap(func)
