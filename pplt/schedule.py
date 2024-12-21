@@ -7,10 +7,11 @@ that affect the accounts.
 
 from datetime import date
 from heapq import heappop, heappush, heapify
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+from pplt.table import Table
 from pplt.timeline import TimelineUpdateHandler
 from pplt.dates import parse_month
 
@@ -75,6 +76,27 @@ class Schedule:
         self.__last_run = date_
         while self.__events and self.__events[0][0] <= date_:
             yield heappop(self.__events)
+
+    @property
+    def table(self):
+        '''
+        Return a table of the events in the schedule.
+        '''
+        def extract(event: tuple[date, TimelineUpdateHandler]):
+            date_, handler = event
+            period = cast(Any, handler).period if hasattr(handler, 'period') else None
+            start = period.start if period else None
+            end = period.end if period else None
+            n = period.n if period else None
+            unit = period.unit if period else None
+            return date_, handler.__name__, start, end, n, unit
+
+        events = sorted(self.events)
+        return Table(values=list(map(extract, events)),
+                    labels=['Month', 'Handler', 'Start', 'End', 'N', 'Unit'],
+                    ncols=6,
+                    formats=['%y/%m'],
+                    end=len(events))
 
     def __repr__(self):
         return f'Schedule({sorted(self.events)}, last_run={self.__last_run})'
