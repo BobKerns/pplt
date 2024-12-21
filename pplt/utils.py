@@ -4,7 +4,7 @@ Utilities for special iterators, etc, etc.
 
 from itertools import islice, tee
 from collections.abc import Hashable, Iterable, Iterator
-from typing import Any, Optional, overload
+from typing import Any, cast, overload
 
 from rich.console import Console
 
@@ -45,17 +45,18 @@ def skip[T](n: int, x: Iterator[T]) -> Iterator[T]:
     """
     for _ in range(n):
         next(x)
+    return x
 
-def dict_join[K: Hashable, T](d: dict[K, Iterable[T]]) -> Iterator[dict[K, T]]:
+def dict_join[K: Hashable, T](d: dict[K, Iterable[T]]|Any) -> Iterator[dict[K, T]]:
     """
     Iterate over a dictionary's iterable values in parallel,
     returning an iterator of dictionaries.
     """
-    state = {k: iter(v) if isinstance(v, Iterable) else v
+    state = {k: iter(cast(Iterable[T], v)) if isinstance(v, Iterable) else v
              for k, v in d.items()}
     try:
         while True:
-            yield {k: next(v) if isinstance(v, Iterator) else v
+            yield {k: next(cast(Iterator[T], v)) if isinstance(v, Iterator) else v
                 for k, v in state.items()}
     except StopIteration:
         pass
@@ -78,7 +79,7 @@ def dict_split[K: Hashable, T](joined: Iterator[dict[K, T]]) -> dict[K, Iterator
     return {key: split(key, d) for key, d in zip(keys, tee(main, len(keys)))}
 
 
-def attr_split(joined: Iterator[any], *attrs: str):
+def attr_split(joined: Iterator[Any], *attrs: str):
     """
     Split an iterator of objects into subiterators.
     """
@@ -95,7 +96,7 @@ def attr_split(joined: Iterator[any], *attrs: str):
 @overload
 def unzip[T1, T2, T3, T4, T5, T6, T7, T8](x: Iterable[tuple[T1, T2, T3, T4,
                                                             T5, T6, T7, T8]],
-                                             n: Optional[int]=None,
+                                             n: int|None=None,
                                              ) -> tuple[Iterator[T1],
                                                         Iterator[T2],
                                                         Iterator[T3],
@@ -107,7 +108,7 @@ def unzip[T1, T2, T3, T4, T5, T6, T7, T8](x: Iterable[tuple[T1, T2, T3, T4,
      ...
 @overload
 def unzip[T1, T2, T3, T4, T5, T6, T7](x: Iterable[tuple[T1, T2, T3, T4, T5, T6, T7]],
-                                        n: Optional[int]=None,
+                                        n: int|None=None,
                                         ) -> tuple[Iterator[T1],
                                                       Iterator[T2],
                                                       Iterator[T3],
@@ -118,7 +119,7 @@ def unzip[T1, T2, T3, T4, T5, T6, T7](x: Iterable[tuple[T1, T2, T3, T4, T5, T6, 
      ...
 @overload
 def unzip[T1, T2, T3, T4, T5, T6](x: Iterable[tuple[T1, T2, T3, T4, T5, T6]],
-                                    n: Optional[int]=None,
+                                    n: int|None=None,
                                     ) -> tuple[Iterator[T1],
                                                  Iterator[T2],
                                                  Iterator[T3],
@@ -128,7 +129,7 @@ def unzip[T1, T2, T3, T4, T5, T6](x: Iterable[tuple[T1, T2, T3, T4, T5, T6]],
         ...
 @overload
 def unzip[T1, T2, T3, T4, T5](x: Iterable[tuple[T1, T2, T3, T4, T5]],
-                            n: Optional[int]=None,
+                            n: int|None=None,
     ) -> tuple[Iterator[T1],
                 Iterator[T2],
                 Iterator[T3],
@@ -137,7 +138,7 @@ def unzip[T1, T2, T3, T4, T5](x: Iterable[tuple[T1, T2, T3, T4, T5]],
      ...
 @overload
 def unzip[T1, T2, T3, T4](x: Iterable[tuple[T1, T2, T3, T4]],
-                        n: Optional[int]=None,
+                        n: int|None=None,
     ) -> tuple[Iterator[T1],
                 Iterator[T2],
                 Iterator[T3],
@@ -145,29 +146,29 @@ def unzip[T1, T2, T3, T4](x: Iterable[tuple[T1, T2, T3, T4]],
     ...
 @overload
 def unzip[T1, T2, T3](x: Iterable[tuple[T1, T2, T3]],
-                    n: Optional[int]=None,
+                    n: int|None=None,
     ) -> tuple[Iterator[T1],
                Iterator[T2],
                Iterator[T3]]:
     ...
 @overload
 def unzip[T1, T2](x: Iterable[tuple[T1, T2]],
-                n: Optional[int]=None,
+                n: int|None=None,
     ) -> tuple[Iterator[T1],
                Iterator[T2]]:
     ...
 @overload
 def unzip[T1](x: Iterable[tuple[T1]],
-            n: Optional[int]=None,
+            n: int|None=None,
     ) -> tuple[Iterator[T1]]:
     ...
 @overload
 def unzip[T](x: Iterable[tuple[T, ...]],
-            n: Optional[int]=None,
+            n: int|None=None,
     ) -> tuple[Iterator[T], ...]:
     ...
 def unzip[T](x: Iterable[tuple[T, ...]],
-            n: Optional[int]=None,
+            n: int|None=None,
     ) -> tuple[Iterator[T], ...]:
     """
     Unzip an iterator of tuples into a tuple of iterators. This is the inverse of

@@ -3,7 +3,7 @@ Module to model retirement finances.
 '''
 
 from pplt.account import (
-    Account, AccountStatus, AccountValue,
+    Account, AccountStatus, AccountValue, AccountUpdate,
     DEFAULT_CURRENCY,
 )
 from pplt.currency import Currency, CURRENCIES
@@ -11,7 +11,7 @@ from pplt.dates import (
     parse_month, next_month, months, days_per_month,
     months_str, unparse_month, parse_end)
 from pplt.decorators import (
-    event, transaction, AccountUpdate,
+    event, transaction,
     EventHandler, TransactionHandler,
     EventSpecifier, TransactionSpecifier,
 )

@@ -4,18 +4,18 @@ for each account, on a monthly basis.
 '''
 
 from abc import abstractmethod
-from collections.abc import Iterable, Generator
+from collections.abc import Generator
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import TYPE_CHECKING, ClassVar, NoReturn, Optional, Protocol
+from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, Protocol, cast
 from weakref import WeakKeyDictionary
 
-from pplt.account import Account, AccountValue
+from pplt.account import Account, AccountUpdate, AccountValue
 from pplt.dates import days_per_month, parse_month
 if TYPE_CHECKING:
     import pplt.schedule as sch
 
-type TimelineAccountState = Generator[AccountValue, None, NoReturn]
+type TimelineAccountState = Generator[AccountValue, AccountUpdate, NoReturn]
 '''
 A generator of `AccountState` objects, representing the state of an account.
 The generator accepts updates to the account, and yields the updated state.
@@ -77,7 +77,7 @@ class TimelineUpdateHandler(Protocol):
         step: TimelineStep
             The current step in the timeline.
         '''
-
+    __name__: str
 
 if TYPE_CHECKING:
     import pplt.schedule as sch
@@ -116,7 +116,7 @@ class Timeline:
         WeakKeyDictionary()
 
     def __iter__(self) -> TimelineSeries:
-        def TimelineSeries_():
+        def TimelineSeries_() -> Generator[TimelineStep, Any, NoReturn]:
             '''
             Iterate over the values of the timeline.
             '''
@@ -148,17 +148,18 @@ class Timeline:
         # We can't override the __class__ or add attributes.
         TimelineSeries_.__name__ = 'TimelineSeries'
         TimelineSeries_.__qualname__ = 'TimelineSeries'
-        it = TimelineSeries_()
+        it = cast(TimelineSeries, TimelineSeries_())
         # Since we can't add attributes, we use a weak reference to the metadata.
         # This allows it to be GC'd when the series is no longer referenced, but
         # still allows the timeline to be accessed from the series to allow restarts.
+
         Timeline._series[it] = self
         return it
 
 
-def timeline(schedule: Optional['sch.Schedule']=None,
-             start: Optional[date|str]=None, /,
-             **kwargs: Iterable[float]) -> Timeline:
+def timeline(schedule: 'sch.Schedule|None'=None,
+             start: date|str|None=None, /,
+             **kwargs: float|Account) -> Timeline:
     """
     Create a timeline of values. Iterating over it produces a
     `TimelineSeries`.
@@ -184,7 +185,7 @@ def timeline(schedule: Optional['sch.Schedule']=None,
         schedule = Schedule()
     start = parse_month(start)
     accounts: dict[str, Account] = {
-        k: v if isinstance(v, Account) else Account(k, v)
+        k: v if isinstance(v, Account) else Account(k, float(v))
         for k, v in kwargs.items()
     }
     return Timeline(schedule, start, accounts=accounts)
@@ -206,4 +207,4 @@ def restart(series: TimelineSeries) -> TimelineSeries:
     series: TimelineSeries
         A series of values, with the date reset to the start.
     '''
-    return iter(Timeline._series[series])
+    return iter(Timeline._series[series]) # type: ignore

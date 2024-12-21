@@ -3,11 +3,13 @@ Terminal table printer
 '''
 
 import sys
-from collections.abc import Collection, Iterable
+from collections.abc import Collection, Iterable, Sequence
 from contextlib import suppress
 from datetime import date
 from itertools import chain, repeat, tee, islice
+from typing import Any, cast, overload
 
+from rich.console import RenderableType
 from rich.table import Table as RichTable
 from rich.pretty import install as install_rich
 from rich.protocol import is_renderable
@@ -22,7 +24,7 @@ Use Rich to print tables.
 '''
 
 if RICH_TABLE:
-    if sys.displayhook and sys.displayhook.__name__ == 'wrap_displayhook':
+    if sys.displayhook.__name__ == 'wrap_displayhook':
         # Already installed
         pass
     else:
@@ -30,7 +32,7 @@ if RICH_TABLE:
         install_rich()
         rich_hook = sys.displayhook
 
-        def wrap_displayhook(val):
+        def wrap_displayhook(val: Any):
             if type(val).__module__ == 'xonsh.procs.pipelines':
                 return old_hook(val)
             return rich_hook(val)
@@ -62,7 +64,7 @@ def table(series: TimelineSeries|Timeline,
             series = iter(series)
         case TimelineSeries():
             pass
-    peek, header, body = tee(series, 3)
+    peek, header = tee(series, 2)
     date_, values = attr_split(header, 'date', 'values')
     start = next_month()
     with suppress(StopIteration):
@@ -98,6 +100,18 @@ def series_table(*series: Iterable[float],
                     end=end,
                     )
 
+type SingleRowIndex = int
+type MultiRowIndex = tuple[int, ...]|slice
+type RowOnlyIndex = SingleRowIndex|slice|tuple[tuple[SingleRowIndex,...]]
+type SingleColIndex = int|str
+type MultiColIndex = tuple[int|str, ...]|slice
+type ColumnIndex = SingleColIndex|MultiColIndex
+type TableIndex = RowOnlyIndex\
+    |tuple[SingleRowIndex, SingleColIndex]\
+    |tuple[MultiRowIndex, SingleColIndex]\
+    |tuple[SingleRowIndex, MultiColIndex]\
+    |tuple[MultiRowIndex, MultiColIndex]
+
 
 class Table:
     '''
@@ -110,9 +124,22 @@ class Table:
             table = RichTable(expand=False)
             for lbl in self.labels:
                 table.add_column(lbl, justify='center',  header_style='bold',)
+            def cell(value: Any, fmt: str) -> RenderableType:
+                match value:
+                    case _ if is_renderable(value):
+                        return cast(RenderableType, value)
+                    case float():
+                        return f'{value:{fmt}}'
+                    case None:
+                        return '--'''
+                    case _:
+                        return str(value)
+
             for row in self.values:
-                cells = (v if is_renderable(v) else f'{v:{fmt}}'
-                         for v, fmt in zip(row, self.formats))
+                cells = (
+                    cell(v, fmt)
+                    for v, fmt in zip(row, self.formats)
+                )
                 table.add_row(*cells)
             self.__rich_table = table
         return self.__rich_table
@@ -125,7 +152,7 @@ class Table:
     def labels(self):
         return self.__labels
     @labels.setter
-    def labels(self, value):
+    def labels(self, value: list[str]):
         self.__labels = value
 
     __formats: list[str]
@@ -140,17 +167,27 @@ class Table:
 
     values: list[tuple[float, ...]]
 
-    values: list[tuple[float, ...]]
-
-    def __init__(self, labels, formats, ncols, values, end):
+    def __init__(self, labels: list[str], formats: list[str], ncols: int, values: list[tuple[float, ...]], end: int|str|date):
         self.labels = labels
         self.ncols = ncols
         self.values = values
         self.end = end
         self.formats = formats
 
-    def __getitem__(self, i: int):
-        def extract_columns(row, c):
+
+
+    @overload
+    def __getitem__(self, i: RowOnlyIndex) -> tuple[Any]:...
+    @overload
+    def __getitem__(self, i: tuple[SingleRowIndex, SingleColIndex]) -> Any:...
+    @overload
+    def __getitem__(self, i: tuple[MultiRowIndex, SingleColIndex]) -> list[Any]:...
+    @overload
+    def __getitem__(self, i: tuple[SingleRowIndex, MultiColIndex]) -> tuple[Any, ...]:...
+    @overload
+    def __getitem__(self, i: tuple[MultiRowIndex, MultiColIndex]) -> list[tuple[Any, ...]]:...
+    def __getitem__(self, i: TableIndex) -> Any:
+        def extract_columns(row: Sequence[Any], c: int|slice|str|tuple[int|slice|str,...]) -> Any:
             match c:
                 case int()|slice():
                     return row[c]
@@ -158,23 +195,31 @@ class Table:
                     return tuple(extract_columns(row, i) for i in c)
                 case str():
                     return row[self.labels.index(c)]
-                case _:
+                case _: # type: ignore
                     return NotImplemented
         match i:
             case int():
                 return self.values[i]
             case slice():
                 return self.values[i]
-            case (tuple(),):
-                return [self.values[idx] for idx in i]
+            case (tuple(i_),):
+                return [self.values[idx] for idx in i_]
             case (int(rowid), int()|slice()|str()|tuple()):
                 row = self.__getitem__(rowid)
                 return extract_columns(row, i[1])
-            case (slice()|tuple(),
+            case (slice(),
                   int()|slice()|str()|tuple()):
                 rows = self.__getitem__(i[0])
                 return [extract_columns(row, i[1]) for row in rows]
-            case _:
+            case (tuple(r_),
+                  int()|slice()|str()|tuple()):
+                rows = [
+                    r for s in r_
+                    for g in self.__getitem__(s) # TODO: Will fail on s = int()
+                    for r in g
+                ]
+                return [extract_columns(row, i[1]) for row in rows]
+            case _: # type: ignore
                 return NotImplemented
 
     def __iter__(self):

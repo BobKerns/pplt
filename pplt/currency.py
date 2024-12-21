@@ -2,7 +2,7 @@
 Currency codes and symbols
 '''
 
-from typing import Literal
+from typing import Literal, cast
 from dataclasses import dataclass
 
 type CurrencyCode = Literal[
@@ -46,7 +46,7 @@ class Currency:
 
 
 CURRENCIES: dict[CurrencyCode, Currency] = {
-    k:Currency(**v) for k,v in {
+    cast(CurrencyCode, k):Currency(**v) for k,v in { # type: ignore
         "USD": {
             "symbol": "$",
             "name": "US Dollar",
