@@ -1,13 +1,6 @@
 {
     "files.exclude": {
-        "**/.git": true,
-        "**/.svn": true,
-        "**/.hg": true,
-        "**/CVS": true,
-        "**/.DS_Store": true,
-        "**/Thumbs.db": true,
-        "**/.ruby-lsp": true,
-        "**/*.crswap": true
+        "**/.ruby-lsp": false
     },
     "hide-files.files": [],
     "cSpell.customDictionaries": {

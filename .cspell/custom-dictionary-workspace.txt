@@ -3,6 +3,7 @@ Ariaries
 Ariary
 BCEAO
 BEAC
+beautifulsoup
 Bolívar
 bolívars
 Botswanan
@@ -11,6 +12,8 @@ Colón
 colónes
 colorama
 contine
+dataframe
+dataframes
 direnv
 Djiboutian
 envrc
@@ -21,12 +24,14 @@ httpx
 islice
 isort
 itertools
+itertuples
 Kazakhstani
 kroons
 kunas
 laris
 lekë
 litai
+lxml
 manats
 multiplot
 Myanma
@@ -44,6 +49,7 @@ plotsize
 pltext
 pplt
 procs
+pypdf
 pyright
 pytest
 pyupgrade
