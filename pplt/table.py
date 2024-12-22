@@ -9,6 +9,8 @@ from datetime import date
 from itertools import chain, count, repeat, tee, islice
 from typing import Any, cast, overload
 
+import pandas as pd
+
 from rich.console import RenderableType
 from rich.table import Table as RichTable
 from rich.pretty import install as install_rich
@@ -123,6 +125,20 @@ def series_table(*series: Iterable[float],
     '''
     return tuple_table(zip(*series),
                     labels=labels,
+                    formats=formats,
+                    end=end,
+                    )
+
+def dataframe_table(df: pd.DataFrame,
+                    end: int=12,
+                    labels: Collection[str]=(),
+                    formats: Iterable[str] = (),
+                    ):
+    '''
+    Print a table of values from a DataFrame.
+    '''
+    return tuple_table(df.itertuples(index=False, name=None),
+                    labels=labels or df.columns,
                     formats=formats,
                     end=end,
                     )
