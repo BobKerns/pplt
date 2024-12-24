@@ -17,7 +17,7 @@ from rich.pretty import install as install_rich
 from rich.protocol import is_renderable
 
 from pplt.dates import next_month, parse_end, parse_month
-from pplt.timeline import Timeline, TimelineSeries
+from pplt.timeline_series import Timeline, TimelineSeries
 from pplt.utils import take, attr_split, dict_split
 
 RICH_TABLE=True

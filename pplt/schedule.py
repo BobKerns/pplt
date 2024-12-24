@@ -12,8 +12,8 @@ from itertools import count
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-from pplt.table import Table
-from pplt.timeline import TimelineUpdateHandler
+from pplt.rich_tables import Table
+from pplt.timeline_series import TimelineUpdateHandler
 from pplt.dates import parse_month
 
 _counter = iter(count())

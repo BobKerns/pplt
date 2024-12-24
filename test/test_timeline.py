@@ -3,7 +3,7 @@ Tests of the timeline module.
 '''
 
 from pplt.dates import next_month
-from pplt.timeline import timeline
+from pplt.timeline_series import timeline
 
 def test_timeline_basic():
     tl = timeline()

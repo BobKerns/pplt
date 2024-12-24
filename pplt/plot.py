@@ -15,7 +15,7 @@ import plotext as plt_
 from pplt.dates import (
     months, parse_month, unparse_month, parse_end,
 )
-from pplt.timeline import Timeline, TimelineSeries
+from pplt.timeline_series import Timeline, TimelineSeries
 from pplt.utils import attr_split, dict_split, take
 
 def choose_stride(ymin: float, ymax: float):
