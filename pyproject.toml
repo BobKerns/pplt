@@ -17,4 +17,9 @@ dependencies = [
     "textual-plotext >= 1.0.1",
     "httpx >= 0.28.1",
     "textual-dev >= 1.7.0",
+    "beautifulsoup4 >= 4.12.3",
+    "lxml >= 5.3.0",
+    "pandas >= 2.2.3",
+    "requests >= 2.32.3",
+    "pypdf >= 5.1.0",
 ]

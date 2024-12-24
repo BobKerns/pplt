@@ -8,7 +8,7 @@ from typing import Literal
 
 import pytest
 
-from pplt.timeline import (
+from pplt.timeline_series import (
     TimelineStep, TimelineAccountStates, CurrentAccountValues,
 )
 from pplt.schedule import Schedule
