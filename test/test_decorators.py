@@ -14,7 +14,7 @@ from pplt.dates import parse_month
 from pplt.decorators import event, transaction
 from pplt.account import AccountValue, Account
 from pplt.schedule import Schedule
-from pplt.timeline import TimelineStep, TimelineAccountStates
+from pplt.timeline_series import TimelineStep, TimelineAccountStates
 
 
 def make_step(*keys: str):

@@ -4,7 +4,7 @@ Tests for the interest module.
 
 from pytest import approx # type: ignore
 
-from pplt.interest import (
+from pplt.interest_utils import (
     daily_pct, daily_rate, monthly_pct,
     monthly_rate, quarterly_pct, quarterly_rate,
 )

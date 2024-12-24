@@ -12,7 +12,7 @@ from pplt.dates import next_month, parse_month
 from pplt.period import Periodic, PeriodUnit
 if TYPE_CHECKING:
     from pplt.account import AccountValue, AccountUpdate
-    from pplt.timeline import (
+    from pplt.timeline_series import (
         TimelineStep,
         TimelineUpdateHandler,
     )
