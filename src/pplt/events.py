@@ -6,7 +6,7 @@ from datetime import date
 from typing import Any
 
 from pplt.account import AccountValue
-from pplt.interest import monthly_rate
+from pplt.interest_utils import monthly_rate
 from pplt.decorators import event
 
 @event()

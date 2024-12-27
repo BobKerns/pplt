@@ -21,8 +21,8 @@ from pplt.plot import (
     plt_timeline, plt_by_month, multiplot, subplot,
 )
 from pplt.schedule import Schedule
-from pplt.table import Table, table, series_table, tuple_table
-from pplt.timeline import (
+from pplt.rich_tables import Table, table, series_table, tuple_table
+from pplt.timeline_series import (
     Timeline, TimelineStep, TimelineSeries,
     TimelineAccountStates, TimelineAccountState,
     CurrentAccountValues, TimelineUpdateHandler,

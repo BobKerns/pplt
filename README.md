@@ -1,28 +1,5 @@
 # Setting up to explore
 
-## A note about intent
-
-Our initial goal is to help understand the principles behind how paying off the mortgage would affect our finances. Let me emphasize:
-
-_Understand the principles_.
-
-The _initial_ goal is _not_ to understand the specifics of our financial situation. That requires considerably more detail, which we should get to.
-
-BUT IT IS NOT WHERE TO START!
-
-Diving into out situation right away will result in endless discussions and no progress.
-
-Treating it a programming exercise won't work, either. You need to understand the problem before you can program it.
-
-It still covers a number of topics:
-
-* Investment income
-* Loan interest vs principal
-* Marginal tax rates and tax caps
-* Inflation
-
-Each of these interact with the mortgage tradeoff. Once we can demonstrate the nature of those interactions, we will be ready to tackle the details.
-
 ## Install direnv
 
 Not essential, but it will save you trouble.
@@ -67,6 +44,12 @@ source .venv/bin/activate
 
 (That's it. `uv sync` creates the virtual environment as well as installing
 dependencies).
+
+## Set up VS Code
+
+The Python extension version 2024.22.1 has a new bug that breaks test discovery (it hangs forever). Until it is fixed, we need to downgrade to 2024.22.0.
+
+[Instructions can be found here.](https://github.com/microsoft/vscode-python/issues/24656#issuecomment-2561238479)
 
 ## What is here so far
 
@@ -114,10 +97,10 @@ The basic concepts should be familiar:
 
 To start, we won't bother with using the schedule or regular events such as interest.  Rather, we can just let the individual accounts update themselves.
 
-For example, we can model an interest-bearing (or interest-charging) account like this:
+For example, we could model an interest-bearing (or interest-charging) account like this:
 
 ```python
-def interest(principle: float,interest: float):
+def interest_account(principle: float,interest: float):
       monthly = 1 + monthly_rate(interest/100)
       while True:
           yield principle
@@ -127,9 +110,22 @@ def interest(principle: float,interest: float):
 A timeline combines the accounts:
 
 ```python
-A = interest(100000, monthly_rate(0.10))
-M = interest(-100000, monthly_rate(0.0385))
+A = interest_account(100000, monthly_rate(0.10))
+M = interest_account(-100000, monthly_rate(0.0385))
 tl = timeline(Mortgage=M, Fidelity=A)
 ```
 
 (By default, a timeline starts at the beginning of the next month, but series of monthly dates is always a part of a timeline)
+
+This isn't quite how we do it, however; this is a bit too inflexible. Instead, we separate the updates from the accounts, and move them to the _schedule_.
+
+For experimenting, we can use a shortcut to creating an account, and just supply an initial balance:
+
+```python
+tl = timeline(Mortgage=-100000, Fidelity=100000)
+tl.schedule.add(interest('Mortgage', rate=0.0385, period=(1, 'month')))
+tl.schedule.add(interest('Fidelity', rate=0.10, period=(1, 'month')))
+
+
+
+```

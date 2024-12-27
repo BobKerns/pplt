@@ -169,7 +169,6 @@ def timeline(schedule: 'sch.Schedule|None'=None,
 
     PARAMETERS
     ----------
-
     start: `Optional[date|str]`
         Starting date. Defaults to the start of the next month.
     **kwargs: `Iterable[Account|float]`

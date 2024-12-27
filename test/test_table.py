@@ -1,5 +1,5 @@
 '''
-Tests for the table module.
+Tests for the rich_tables module.
 '''
 
 from datetime import date
@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 
 from pplt.dates import parse_month
-from pplt.table import Table
+from pplt.rich_tables import Table
 
 def r(month:str, *v: float) -> tuple[date, *tuple[float, ...]]:
     '''

@@ -13,5 +13,7 @@
 
 __cache__/
 *.pyc
+build/
+*.egg-info/
 
 .coverage
