@@ -1,0 +1,11 @@
+---
+name: Bank
+type: account
+balance: 1000.0
+---
+name: Bank-interest
+type: interest
+account: Bank
+rate: 0.08
+period: (1, month)
+

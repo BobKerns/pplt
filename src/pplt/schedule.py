@@ -68,7 +68,7 @@ class Schedule:
         '''
         Return a copy of the schedule.
         '''
-        return Schedule(self.events)
+        return Schedule(self.events.copy())
 
     def add(self,
             date_: date|str,

@@ -1,5 +1,5 @@
 '''
-Tests for the table module.
+Tests for the rich_tables module.
 '''
 
 from datetime import date

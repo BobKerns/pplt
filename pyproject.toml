@@ -2,9 +2,11 @@
 name = "pplt"
 version = "0.1.0"
 description = "Demo."
-authors = ["Bob Kerns <1154903+BobKerns@users.noreply.github.com>"]
+authors = [
+    {name = "Bob Kerns", email = "1154903+BobKerns@users.noreply.github.com"}
+]
 
-license = "MIT"
+license.file = "LICENSE"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
