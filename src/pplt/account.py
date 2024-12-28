@@ -236,9 +236,10 @@ class Account(AccountValue):
     def __init__(self,
                  name: str,
                  balance: float=0.0,
-                 status: AccountStatus='open'
+                 status: AccountStatus='open',
+                 currency: Currency=DEFAULT_CURRENCY
                  ):
-        super().__init__(balance, status)
+        super().__init__(balance, status, currency)
         self.name = name
 
     def __iter__(self)  -> Generator[AccountValue, AccountUpdate, NoReturn]:

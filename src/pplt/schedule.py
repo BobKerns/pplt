@@ -7,11 +7,12 @@ that affect the accounts.
 
 from datetime import date
 from heapq import heappop, heappush, heapify
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, cast, overload
 from itertools import count
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+from pplt.dates import next_month
 from pplt.rich_tables import Table
 from pplt.timeline_series import TimelineUpdateHandler
 from pplt.dates import parse_month
@@ -70,9 +71,22 @@ class Schedule:
         '''
         return Schedule(self.events.copy())
 
+    @overload
     def add(self,
             date_: date|str,
             handler: TimelineUpdateHandler,
+            /,
+            ) -> None: ...
+    @overload
+    def add(self,
+            handler: TimelineUpdateHandler,
+            /,
+            ) ->None:...
+
+    def add(self,
+            date_: date|str|TimelineUpdateHandler,
+            handler: TimelineUpdateHandler|None=None,
+            /,
             ):
         '''
         Add an event to the schedule.
@@ -84,7 +98,11 @@ class Schedule:
         event: Callable[[datetime, dict[str, AccountState]], None]
             The event function.
         '''
-        date_ = parse_month(date_)
+        if handler is None:
+            handler = cast(TimelineUpdateHandler, date_)
+            date_ = next_month()
+        else:
+           date_ = parse_month(cast(date|str, date_))
         if self.__last_run and date_ <= self.__last_run:
             raise ValueError('Can only add future dates. '
                              f'date={date_}, last_run={self.__last_run}')
