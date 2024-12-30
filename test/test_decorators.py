@@ -62,7 +62,7 @@ def test_event_signatures():
 
 def test_event_invocation():
     @event()
-    def interest(date_: date, state: AccountValue, /,
+    def t_interest(date_: date, state: AccountValue, /,
                 rate: float,
                 **_):
         'Calculate interest on an account.'
@@ -70,7 +70,7 @@ def test_event_invocation():
         return float(state) * rate
 
     _, step = make_step('account')
-    f2 = interest('account', parse_month('21/1'), rate=0.10)
+    f2 = t_interest('account', parse_month('21/1'), rate=0.10)
     f2(step)
     assert next(step.states['account']) == approx(1100.00)
 

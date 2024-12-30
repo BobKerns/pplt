@@ -4,14 +4,17 @@ for each account, on a monthly basis.
 '''
 
 from abc import abstractmethod
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, Protocol, cast
 from weakref import WeakKeyDictionary
 
+from rich.console import RenderableType
+
 from pplt.account import Account, AccountUpdate, AccountValue
 from pplt.dates import days_per_month, parse_month
+from pplt.period import Periodic
 if TYPE_CHECKING:
     import pplt.schedule as sch
 
@@ -78,6 +81,11 @@ class TimelineUpdateHandler(Protocol):
             The current step in the timeline.
         '''
     __name__: str
+    start: date
+    period: Periodic|None
+    fn: Callable[..., Any]
+    accounts: RenderableType|list[RenderableType]
+    description: RenderableType|list[RenderableType]
 
 if TYPE_CHECKING:
     import pplt.schedule as sch
@@ -132,7 +140,6 @@ class Timeline:
                 states =  {k: next(v) for k, v in accounts.items()}
                 step = TimelineStep(date_, schedule, accounts, states)
                 yield step
-                date_ = date_ + timedelta(days=days_per_month(date_))
                 # Note that we don't update the account states after each event.
                 # Updating the states would introduce order-dependence, and also
                 # deviate from how the real world usually works, with a reconciliation
@@ -140,10 +147,10 @@ class Timeline:
                 # at once.
                 for step_date, event in schedule.run(date_):
                     assert step_date <= date_
-                    assert step_date >= step_date
                     if step_date > step.date:
                         step = TimelineStep(step_date, schedule, accounts, states)
                     event(step)
+                date_ = date_ + timedelta(days=days_per_month(date_))
         # Make it a bit easier to recognize series generator.
         # We can't override the __class__ or add attributes.
         TimelineSeries_.__name__ = 'TimelineSeries'

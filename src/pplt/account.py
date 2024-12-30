@@ -196,7 +196,7 @@ class AccountValue:
         def balance(style: str):
             fmt = self.currency.format
             sym = self.currency.symbol
-            grid = RichTable.grid(expand=False)
+            grid = RichTable.grid(expand=True)
             grid.add_column(max_width=1)
             balance = f'{self.balance:{fmt}}'
             grid.add_column(justify='right', max_width=len(balance))
