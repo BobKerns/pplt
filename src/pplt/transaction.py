@@ -10,9 +10,9 @@ from pplt.account import AccountValue
 from pplt.decorators import transaction
 
 
-@transaction()
-def transfer(date_: date, from_state: AccountValue, to_state: AccountValue, /,
-            amount: float):
+@transaction(description=['{amount}'])
+def transfer[V: float|AccountValue](date_: date, from_state: AccountValue, to_state: AccountValue, /,
+            amount: V) -> V:
     """
     Transfer a fixed amount of money between accounts.
 

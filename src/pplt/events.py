@@ -9,13 +9,13 @@ from pplt.account import AccountValue
 from pplt.interest_utils import monthly_rate
 from pplt.decorators import event
 
-@event()
+@event(description='{rate:0.3f}% APR')
 def interest(date_: date, state: AccountValue, /,
             rate: float,
             **kwargs: Any):
     """
     Calculate interest on an account. e.g.:
 
-    schedule.add('21/1', interest, rate=0.01)
+    schedule.add(interest('MyAccount', '25/1', rate=0.01))
     """
     return state * monthly_rate(rate)

@@ -3,15 +3,19 @@ Decorators for the pplt package.
 '''
 
 from abc import abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from datetime import date
+import re
 from types import NoneType
-from typing import Any, Protocol, TYPE_CHECKING
+from typing import Any, Protocol, TYPE_CHECKING, cast
 
-from pplt.dates import next_month, parse_month
+from rich.console import ConsoleRenderable, RenderableType, RichCast
+
+from pplt.dates import next_month, parse_month, unparse_month
 from pplt.period import Periodic, PeriodUnit
+import pplt.timeline_series as tl
+from pplt.account import AccountValue, AccountUpdate
 if TYPE_CHECKING:
-    from pplt.account import AccountValue, AccountUpdate
     from pplt.timeline_series import (
         TimelineStep,
         TimelineUpdateHandler,
@@ -79,19 +83,123 @@ class EventSpecifier(Protocol):
     __name__: str
 
 
-def mywrap(func:  Callable[..., Any]) -> Callable[..., Any]:
+class Wrapper(tl.TimelineUpdateHandler):
     '''
-    Wrap a function without setting the signature.
+    A wrapper for the user-supplied function that adds metadata, including
+    scheduling information, and adapts it to the TimelineUpdateHandler protocol.
     '''
-    def decorate[T: Callable[..., Any]](wrapper: T) -> T:
-        wrapper.__doc__ = func.__doc__
-        wrapper.__name__ = func.__name__
-        wrapper.__qualname__ = func.__qualname__
-        wrapper.__module__ = func.__module__
-        return wrapper
-    return decorate
 
-def event(period: tuple[int, PeriodUnit]|None=None):
+    start: date
+    period: Periodic|None
+    dates: Iterator[date]
+    fn: Callable[..., Any]
+    func: Callable[..., Any]
+    accounts: RenderableType|list[RenderableType]
+    description: RenderableType|list[RenderableType]
+    __doc__: str|None
+    __name__: str
+    __qualname__: str
+    __module__: str
+
+    def __init__(self, func: Callable[..., Any],
+                 fn: Callable[..., Any],
+                 start: date,
+                 period: Periodic|None,
+                 accounts: str|list[str],
+                 description: str|list[str],
+                 /,
+                 *args: Any,
+                 **kwargs: Any,
+                 ) -> None:
+        self.func = func
+        self.__doc__ = func.__doc__
+        self.__name__ = func.__name__
+        self.__qualname__ = func.__qualname__
+        self.__module__ = func.__module__
+        self.fn = fn
+        self.start = start
+        self.period = period
+        self.accounts = format_cell(accounts, *args, **kwargs)
+        self.description = format_cell(description, *args, **kwargs)
+
+    # The wrapper's signature is determined by the Schedule.
+    # It calls the decorated function and updates the account states.
+    @abstractmethod
+    def __call__(self, step: 'TimelineStep', /) -> None:
+        '''
+        Call the user-supplied function and update the account state.
+        '''
+        ...
+
+    def __repr__(self) -> str:
+        return f'<{self.__name__} {unparse_month(self.start)} {self.accounts} {self.description}>'
+
+class EventWrapper(Wrapper):
+    '''
+    A wrapper for the user-supplied event function that adds metadata, including
+    scheduling information, and adapts it to the TimelineUpdateHandler protocol.
+    '''
+
+    account_name: str
+    args: dict[str, Any]
+
+    def __init__(self, func: Callable[..., Any],
+                    fn: Callable[..., Any],
+                    start: date,
+                    period: Periodic|None,
+                    description: str|list[str],
+                    account_name: str,
+                    /,
+                    **kwargs: dict[str, Any]) -> None:
+            super().__init__(func, fn, start, period, account_name, description,
+                             account_name, **kwargs)
+            self.account_name = account_name
+            self.args = kwargs
+
+    def __call__(self, step: 'TimelineStep', /) -> None:
+        '''
+        Call the user-supplied event function and update the account state.
+        '''
+        date_ = step.date
+        if date_ < self.start:
+            # Too soon.
+            return None
+        account = step.states[self.account_name]
+        value = step.values[self.account_name]
+        update = self.func(date_, value, **self.args)
+        match update:
+            case None:
+                pass
+            case str():
+                raise ValueError(f'Invalid update: {update} for event')
+            case _:
+                account.send(float(update))
+
+RE_VAR_REF = re.compile(r'^\{(\w+)\}$')
+def format_cell(spec: str|list[str], /, *args: Any, **kwargs: Any,) -> RenderableType|list[RenderableType]:
+    '''
+    Format a cell in a table, replacing variables with values from the args.
+
+    Handle rich text specially; it is not converted to a string if the spec is of the form `'{var}'`.
+    '''
+    if isinstance(spec, list):
+        return [cast(RenderableType, format_cell(s, *args, **kwargs)) for s in spec]
+    match RE_VAR_REF.match(spec):
+        case None:
+            return spec.format(*args, **kwargs)
+        case m:
+            var = m.group(1)
+            if var not in kwargs:
+                raise ValueError(f'Value not supplied: {var}. Variables: {", ".join(kwargs.keys()) or "None"}')
+            val = kwargs[var]
+            match val:
+                case ConsoleRenderable() | RichCast() | str():
+                    return val
+                case _:
+                    return str(val)
+
+def event(period: tuple[int, PeriodUnit]|None=None,
+          description: str|list[str] = ''):
     '''
     A decorator for financial events.
 
@@ -128,7 +236,7 @@ def event(period: tuple[int, PeriodUnit]|None=None):
     def decorator(func: EventHandler) -> EventSpecifier:
         # This is what you call to create the event handler to add to the schedule.
         outer_period = period
-        @mywrap(func)
+
         def for_account(name: str, start: date|str|None=None, /,
                         period: tuple[int, PeriodUnit]|None = outer_period,
                         **kwargs: Any) -> 'TimelineUpdateHandler':
@@ -139,39 +247,15 @@ def event(period: tuple[int, PeriodUnit]|None=None):
                 periodic: Periodic|NoneType = Periodic(start, n, units)
             else:
                 periodic: Periodic|None = None
-            dates = iter(periodic) if periodic else iter([start, start])
-            next(dates)
-            next(dates)
-            # The wrapper's signature is determined by the Timeline.
-            # It calls the decorated function and updates the account state.
-            @mywrap(func)
-            def wrapper(step: 'TimelineStep', /) -> None:
-                date_ = step.date
-                if date_ < start:
-                    # Too soon.
-                    return None
-                account = step.states[name]
-                value = step.values[name]
-                update = func(date_, value, **kwargs)
-                match update:
-                    case None:
-                        pass
-                    case str():
-                        raise ValueError(f'Invalid update: {update} for event')
-                    case _:
-                        account.send(float(update))
-                # Re-add the event if it is recurring.
-                if period:
-                    step.schedule.add(next(dates), wrapper)
-            wrapper.period = periodic
-            wrapper.fn = for_account
-            return wrapper
+            return EventWrapper(func, for_account, start, periodic,
+                                      description,
+                                      name,
+                                      **kwargs)
         return for_account
-
     return decorator
 
 
-class TransactionHandler(Protocol):
+class TransactionHandler[V: float|AccountValue](Protocol):
     '''
     The signature for the user-defined transaction functions, before applying
     the decorator.
@@ -181,7 +265,7 @@ class TransactionHandler(Protocol):
                  from_state: 'AccountValue',
                  to_state: 'AccountValue',
                  /,
-                 amount: float) -> float:
+                 amount: V) -> V:
         '''
         The signature for the user-defined transaction functions, before applying
         the decorator.
@@ -231,7 +315,57 @@ class TransactionSpecifier(Protocol):
         '''
         ...
 
-def transaction(period: tuple[int, PeriodUnit]|None=None):
+
+class TransactionWrapper(Wrapper):
+    '''
+    A wrapper for the user-supplied transaction function that adds metadata, including
+    scheduling information, and adapts it to the TimelineUpdateHandler protocol.
+    '''
+
+    from_account: str
+    to_account: str
+    args: Any
+    kwargs: dict[str, Any]
+
+    def __init__(self, func: Callable[..., Any],
+                    fn: Callable[..., Any],
+                    start: date,
+                    period: Periodic|None,
+                    description: str|list[str],
+                    from_account: str,
+                    to_account: str,
+                    /,
+                    *args: Any,
+                    amount: AccountValue|float = 0.0,
+                    **kwargs: Any) -> None:
+        accounts = [from_account, '→ ', to_account]
+        amount = AccountValue(amount) if isinstance(amount, (float, int)) else amount
+        super().__init__(func, fn, start, period, accounts, description,
+                         from_account, to_account, amount=amount, **kwargs)
+        self.from_account = from_account
+        self.to_account = to_account
+        self.args = args
+        print(f'{type(amount)=}')
+        self.kwargs = dict(amount=amount, **kwargs)
+
+    def __call__(self, step: 'TimelineStep', /) -> None:
+        '''
+        Call the user-supplied transaction function and update the account state.
+        '''
+        date_ = step.date
+        if date_ < self.start:
+            # Too soon.
+            return None
+        from_account = step.states[self.from_account]
+        from_value = step.values[self.from_account]
+        to_account = step.states[self.to_account]
+        to_value = step.values[self.to_account]
+        update = self.func(date_, from_value, to_value, **self.kwargs)
+        from_account.send(-update)
+        to_account.send(update)
+
+def transaction(period: tuple[int, PeriodUnit]|None=None,
+                description: str|list[str] = ''):
     '''
     A decorator for financial transaction functions.
 
@@ -265,41 +399,24 @@ def transaction(period: tuple[int, PeriodUnit]|None=None):
                 amount=100.00))
     '''
 
-    def decorator(func: TransactionHandler) -> TransactionSpecifier:
+    def decorator[V: float|AccountValue](func: TransactionHandler[V]) -> TransactionSpecifier:
+        outer_period = period
         # This is what you call to create the event handler to add to the schedule.
-        @mywrap(func)
         def for_accounts(from_: str, to_: str, start: date|str|None=None, /,
-                         **kwargs: Any) -> 'TimelineUpdateHandler':
+                        amount: float|AccountValue = 0.0,
+                        period: tuple[int, PeriodUnit]|None = outer_period,
+                        **kwargs: Any) -> 'TimelineUpdateHandler':
             start = parse_month(start) if start else next_month()
             if isinstance(period, tuple):
                 n, units = period
                 periodic: Periodic|NoneType = Periodic(start, n, units)
             else:
                 periodic: Periodic|None = None
-            dates = iter(periodic) if periodic else iter([start, start])
-            next(dates)
-            next(dates)
-            # The wrapper's signature is determined by the Schedule.
-            # It calls the decorated function and updates the account states.
-            @mywrap(func)
-            def wrapper(step: 'TimelineStep', /) -> None:
-                date_ = step.date
-                if date_ < start:
-                    # Too soon.
-                    return None
-                from_account = step.states[from_]
-                from_value = step.values[from_]
-                to_account = step.states[to_]
-                to_value = step.values[to_]
-                update = func(date_, from_value, to_value,
-                              **kwargs)
-                from_account.send(-update)
-                to_account.send(update)
-                # Re-add the event if it is recurring.
-                if periodic:
-                    step.schedule.add(next(dates), wrapper)
-            return wrapper
-            wrapper.period = period
-            wrapper.fn = for_account
+            if isinstance(amount, float):
+                amount = AccountValue(amount)
+            return TransactionWrapper(func, for_accounts, start, periodic,
+                                      description, from_, to_,
+                                      amount=amount,
+                                      **kwargs)
         return for_accounts
     return decorator
