@@ -91,7 +91,7 @@ def test_event_invocation_early():
     accounts, step = make_step('account')
     f2 = interest('account', parse_month('21/2'), rate=0.10)
     f2(step)
-    assert accounts['account'].balance == 1000.00
+    assert accounts['account'].amount == 1000.00
 
 
 def test_transaction():
@@ -146,5 +146,5 @@ def test_transaction_invocation_early():
     accounts, step = make_step('account1', 'account2')
     f2 = transfer('account1', 'account2', parse_month('21/2'), amount=100.00)
     f2(step)
-    assert accounts['account1'].balance == 1000.00
-    assert accounts['account2'].balance == 1000.00
+    assert accounts['account1'].amount == 1000.00
+    assert accounts['account2'].amount == 1000.00

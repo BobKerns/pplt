@@ -54,12 +54,12 @@ class AccountValue:
     can't multiply or divide two `AccountValue` objects.
     '''
 
-    __match_args__ = ('balance', 'status')
+    __match_args__ = ('amount', 'status')
 
-    __balance: float
+    __amount: float
     @property
-    def balance(self) -> float:
-        return self.__balance
+    def amount(self) -> float:
+        return self.__amount
 
 
     __currency: Currency
@@ -75,13 +75,13 @@ class AccountValue:
 
 
     def __init__(self,
-                 balance: float=0.0,
+                 amount: float=0.0,
                  status: AccountStatus = 'open',
                  currency: Currency = DEFAULT_CURRENCY):
         if status not in ('open', 'closed', 'future'):
             raise ValueError(f'Invalid status: {status}')
         self.__status = status
-        self.__balance = float(balance)
+        self.__amount = float(amount)
         self.__currency = currency
 
 
@@ -92,54 +92,56 @@ class AccountValue:
                     with console.capture() as capture_:  # type: ignore
                         fmt = self.currency.format
                         sym = self.currency.symbol
-                        console.print(f'{sym} {self.balance:{fmt}}', style='green')
+                        console.print(f'{sym} {self.amount:{fmt}}', style='green')
                     return capture_.get()
-                return f'{self.currency.symbol} {self.balance:{self.currency.format}}'
+                return f'{self.currency.symbol} {self.amount:{self.currency.format}}'
             case _:
                 return '--'
 
     def __bool__(self):
-        return self.status == 'open' and self.balance != 0.0
+        return self.status == 'open' and self.amount != 0.0
 
     def __float__(self):
         if self.status != 'open':
             return 0.0
-        return float(self.balance)
+        return float(self.amount) or 0.0
 
     def __int__(self):
-        return int(self.balance)
+        return int(self.amount)
 
     def __complex__(self):
-        return complex(self.balance)
+        return complex(self.amount)
 
     def __eq__(self, value: Any):
         if self.status != 'open':
             return NotImplemented
         match value:
-            case float(balance) | int(balance) | AccountValue(balance, 'open'):
-                return self.balance == balance
+            case float(amount) | int(amount) | AccountValue(amount, 'open'):
+                return self.amount == amount
             case _:
                 # Handle pytest.approx!
-                 return value == self.balance
+                 return value == self.amount
 
     def __hash__(self):
-        return hash((self.balance, self.status))
+        return hash((self.amount, self.status))
 
     def __lt__(self, value: Any):
         if self.status != 'open':
             return NotImplemented
         match value:
-            case float(balance) | int(balance) | AccountValue(balance, 'open'):
-                return self.balance < balance
+            case float(amount) | int(amount) | AccountValue(amount, 'open'):
+                return self.amount < amount
             case _:
                 return NotImplemented
 
     def __add__(self, value: Any):
         if self.status != 'open':
-            return NotImplemented
+            return self
         match value:
-            case float(balance) | int(balance) | AccountValue(balance, 'open'):
-                return AccountValue(self.balance + float(balance), 'open', self.currency)
+            case float(amount) | int(amount) | AccountValue(amount, 'open'):
+                return AccountValue(self.amount + float(amount) or 0.0,
+                                    'open',
+                                    self.currency)
             case _:
                 return NotImplemented
 
@@ -148,10 +150,12 @@ class AccountValue:
 
     def __sub__(self, value: Any):
         if self.status != 'open':
-            return NotImplemented
+            return self
         match value:
-            case float(balance) | int(balance) | AccountValue(balance, 'open'):
-                return AccountValue(self.balance - float(balance), 'open', self.currency)
+            case float(amount) | int(amount) | AccountValue(amount, 'open'):
+                return AccountValue(self.amount - float(amount)  or 0.0,
+                                    'open',
+                                    self.currency)
             case _:
                 return NotImplemented
 
@@ -160,61 +164,58 @@ class AccountValue:
 
     def __mul__(self, value: Any):
         if self.status != 'open':
-            return NotImplemented
+            return self
         match value:
-            case float(balance) | int(balance):
-                return AccountValue(self.balance * float(balance), 'open', self.currency)
+            case float(amount) | int(amount):
+                ndigits = self.currency.decimal_digits
+                amt = self.amount * float(amount) or 0.0
+                amt = round(amt, ndigits)
+                return AccountValue(amt, 'open', self.currency)
             case _:
                 return NotImplemented
 
     def __rmul__(self, value: Any):
         return self * value
 
-    def __neg__(self):  # -self
+    def __neg__(self) -> 'AccountValue':
         if self.status != 'open':
-            return NotImplemented
-        return -self.balance
+            return self
+        return AccountValue(-self.amount or 0.0, 'open', self.currency)
 
     def __truediv__(self, value: Any):
         if self.status != 'open':
             return NotImplemented
         match value:
-            case float(balance) | int(balance):
-                return AccountValue(self.balance / float(balance), 'open', self.currency)
-            case _:
-                return NotImplemented
-
-    def __pow__(self, value: Any):
-        if self.status != 'open':
-            return NotImplemented
-        match value:
-            case float(balance) | int(balance):
-                return self.balance ** float(balance)
+            case float(amount) | int(amount):
+                ndigits = self.currency.decimal_digits
+                amt = self.amount / float(amount)
+                amt= round(amt or 0.0, ndigits)
+                return AccountValue(amt, 'open', self.currency)
             case _:
                 return NotImplemented
 
     def __repr__(self):
         match self.status:
             case 'open':
-                return f'<value {self.currency.symbol} {self.balance} {self.currency}>'
+                return f'<value {self.currency.symbol} {self.amount} {self.currency}>'
             case _:
                 return f'<value {self.status}>'
 
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
-        def balance(style: str):
+        def show_amt(style: str):
             fmt = self.currency.format
             sym = self.currency.symbol
             grid = RichTable.grid(expand=True)
             grid.add_column(max_width=1)
-            balance = f'{self.balance:{fmt}}'
-            grid.add_column(justify='right', max_width=len(balance))
-            grid.add_row(f'[{style}]{sym}[/]', f'[{style}]{balance}[/]')
+            amount = f'{self.amount:{fmt}}'
+            grid.add_column(justify='right', max_width=len(amount))
+            grid.add_row(f'[{style}]{sym}[/]', f'[{style}]{amount}[/]')
             return grid
         match self.status:
-            case 'open' if self.balance >= 0:
-                yield balance('blue')
+            case 'open' if self.amount >= 0:
+                yield show_amt('blue')
             case 'open':
-                yield balance('red')
+                yield show_amt('red')
             case _:
                 return '[grey]--[/]'
 
@@ -223,7 +224,7 @@ class AccountValue:
             case 'open':
                 fmt = self.currency.format
                 sym = self.currency.symbol
-                vlen = len(f'{self.balance:{fmt}}') + len(sym)
+                vlen = len(f'{self.amount:{fmt}}') + len(sym)
             case _:
                 vlen = 2
         return Measurement(vlen, vlen)
@@ -250,38 +251,39 @@ class Account(AccountValue):
     @overload
     def __init__(self,
                  name: str,
-                 balance: float=0.0,
+                 amount: float=0.0,
                  status: AccountStatus='open',
                  currency: Currency=DEFAULT_CURRENCY,
                  /,
                  ) -> None: ...
     def __init__(self,
                  name: str,
-                 balance: float|AccountValue=0.0,
+                 amount: float|AccountValue=0.0,
                  status: AccountStatus='open',
                  currency: Currency=DEFAULT_CURRENCY,
                  /,
                  ):
-        if isinstance(balance, AccountValue):
-            balance, status, currency = balance.balance, balance.status, balance.currency
-        super().__init__(balance, status, currency)
+        if isinstance(amount, AccountValue):
+            amount, status, currency = amount.amount, amount.status, amount.currency
+        super().__init__(amount, status, currency)
         self.name = name
 
     def __iter__(self)  -> Generator[AccountValue, AccountUpdate, NoReturn]:
-        balance = self.balance
+        amount = self.amount
         status = self.status
+        currency = self.currency
         while True:
-            update = yield AccountValue(balance, status)
+            update = yield AccountValue(amount, status, currency)
             match update:
-                case AccountValue(balance_, status_):
-                    balance = balance_
+                case AccountValue(amount_, status_):
+                    amount += amount_
                     status = status_
-                case float(amount):
+                case float(amount_):
                     match status:
                         case 'open':
-                            balance += amount
+                            amount += amount_
                         case 'future':
-                            balance = amount
+                            amount = amount_
                             status = 'open'
                         case _:
                             raise ValueError(f'Invalid update: {update}')
@@ -291,6 +293,7 @@ class Account(AccountValue):
                     pass
                 case _:
                     raise ValueError(f'Invalid update: {update}')
+            amount = round(amount or 0.0, currency.decimal_digits)
 
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
         grid= RichTable.grid(expand=False)
@@ -312,7 +315,7 @@ class Account(AccountValue):
     def __repr__(self):
         match self.status:
             case 'open':
-                return f'<acct {self.name}: {self.currency.symbol}{self.balance}, {self.currency}>'
+                return f'<acct {self.name}: {self.currency.symbol}{self.amount}, {self.currency}>'
             case _:
                 return f'<acct {self.name}: {self.status}, {self.currency}>'
 

@@ -40,6 +40,7 @@ mypy
 mywrap
 nakfas
 ncols
+ndigits
 Nuevo
 nuevos
 Paʻanga
