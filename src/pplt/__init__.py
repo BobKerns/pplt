@@ -16,6 +16,7 @@ from pplt.decorators import (
     EventSpecifier, TransactionSpecifier,
 )
 from pplt.events import interest
+from pplt.loader import add_loader, Loader, load_scenario
 from pplt.plot import (
     ColorCode, Color, SubPlot,
     plt_timeline, plt_by_month, multiplot, subplot,
@@ -25,7 +26,7 @@ from pplt.rich_tables import Table, table, series_table, tuple_table
 from pplt.timeline_series import (
     Timeline, TimelineStep, TimelineSeries,
     TimelineAccountStates, TimelineAccountState,
-    CurrentAccountValues, TimelineUpdateHandler,
+    CurrentAccountValues, UpdateHandler,
     timeline, restart,
 )
 from pplt.transaction import transfer
@@ -39,6 +40,7 @@ __all__ = [
     'AccountStatus',
     'AccountUpdate',
     'AccountValue',
+    'add_loader',
     'attr_split',
     'ColorCode',
     'Color',
@@ -53,6 +55,8 @@ __all__ = [
     'EventHandler',
     'EventSpecifier',
     'interest',
+    'Loader',
+    'load_scenario',
     'months',
     'months_str',
     'multiplot',
@@ -76,7 +80,7 @@ __all__ = [
     'TimelineAccountStates',
     'TimelineSeries',
     'TimelineStep',
-    'TimelineUpdateHandler',
+    'UpdateHandler',
     'transfer',
     'tuple_table',
     'transaction',

@@ -3,7 +3,7 @@ Accounts
 '''
 
 from collections.abc import Generator, Iterable
-from typing import Any, Literal, NoReturn, cast
+from typing import Any, Literal, NoReturn, cast, overload
 from functools import total_ordering
 
 from rich.table import Table as RichTable
@@ -29,6 +29,14 @@ type AccountStatus = Literal['open', 'closed', 'future']
 The status of an account. An account can be open, closed, or future.
 A `future` account is an account that will be open in the future.
 '''
+
+def valid_account_status(status: str) -> AccountStatus:
+    '''
+    Cast a string to an `AccountStatus`.
+    '''
+    if status not in ('open', 'closed', 'future'):
+        raise ValueError(f'Invalid account status: {status}')
+    return status
 
 
 @total_ordering
@@ -233,12 +241,29 @@ class Account(AccountValue):
     '''
     name: str
 
+    @overload
+    def __init__(self,
+                 name: str,
+                 value: AccountValue,
+                 /,
+                 ) -> None: ...
+    @overload
     def __init__(self,
                  name: str,
                  balance: float=0.0,
                  status: AccountStatus='open',
-                 currency: Currency=DEFAULT_CURRENCY
+                 currency: Currency=DEFAULT_CURRENCY,
+                 /,
+                 ) -> None: ...
+    def __init__(self,
+                 name: str,
+                 balance: float|AccountValue=0.0,
+                 status: AccountStatus='open',
+                 currency: Currency=DEFAULT_CURRENCY,
+                 /,
                  ):
+        if isinstance(balance, AccountValue):
+            balance, status, currency = balance.balance, balance.status, balance.currency
         super().__init__(balance, status, currency)
         self.name = name
 

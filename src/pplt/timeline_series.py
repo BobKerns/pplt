@@ -7,7 +7,7 @@ from abc import abstractmethod
 from collections.abc import Callable, Generator
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, Protocol, cast
+from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, Protocol, cast, runtime_checkable
 from weakref import WeakKeyDictionary
 
 from rich.console import RenderableType
@@ -60,7 +60,8 @@ class TimelineSeries(Generator[TimelineStep, None, NoReturn]):
     '''
     timeline: 'Timeline'
 
-class TimelineUpdateHandler(Protocol):
+@runtime_checkable
+class UpdateHandler(Protocol):
     '''
     A function that updates the accounts in the timeline. These are pulled from the
     schedule once per month. They may re-add themselves if they are recurring.

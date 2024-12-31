@@ -7,7 +7,7 @@ that affect the accounts.
 
 from datetime import date
 from heapq import heappop, heappush, heapify
-from typing import  Any
+from typing import  Any, Literal, cast, overload
 from itertools import count
 from collections.abc import Iterable, Iterator, Sequence
 
@@ -15,7 +15,7 @@ from rich.console import RenderableType
 from rich.table import Table as RichTable
 
 from pplt.rich_tables import Table
-from pplt.timeline_series import TimelineUpdateHandler
+from pplt.timeline_series import UpdateHandler
 
 _counter = iter(count())
 
@@ -23,7 +23,8 @@ class ScheduleEntry:
     '''
     A handler entry in the schedule.
     '''
-    handler: TimelineUpdateHandler
+    start: date
+    handler: UpdateHandler
     dates: Iterator[date]
     id: int
     '''
@@ -31,7 +32,8 @@ class ScheduleEntry:
     This is needed to support use as a heap entry in a deterministic way.
     '''
 
-    def __init__(self, handler: TimelineUpdateHandler, id: int|None=None):
+    def __init__(self, handler: UpdateHandler, id: int|None=None):
+        self.start = handler.start
         self.handler = handler
         if handler.period:
             self.dates = iter(handler.period)
@@ -73,8 +75,18 @@ class Schedule:
     def events(self) -> list[tuple[date, ScheduleEntry]]:
         return  self.__events
 
-    def __init__(self, events: list[tuple[date, ScheduleEntry]]|None=None):
-        _events = events or []
+    @overload
+    def __init__(self, events: Iterable[tuple[date, ScheduleEntry]], /, _heap: Literal[True]) -> None: ...
+    @overload
+    def __init__(self, events: Iterable[UpdateHandler]=(), /, _heap: bool=False) -> None: ...
+
+    def __init__(self, events: Iterable[UpdateHandler]|Iterable[tuple[date, ScheduleEntry]]=(), /, _heap: bool=False):
+        if _heap:
+            self.__events = [(date_, entry.copy()) for date_, entry in cast(Iterable[tuple[date, ScheduleEntry]], events)]
+            heapify(self.__events)
+            self.__last_run = None
+            return
+        _events = [(handler.start, ScheduleEntry(handler)) for handler in cast(Iterable[UpdateHandler], events)]
         heapify(_events)
         self.__events = _events
         self.__last_run = None
@@ -84,10 +96,10 @@ class Schedule:
         Return a copy of the schedule.
         '''
         events = [(date_, entry.copy()) for date_, entry in self.events]
-        return Schedule(events)
+        return Schedule(events, _heap=True)
 
     def add(self,
-            handler: TimelineUpdateHandler,
+            handler: UpdateHandler,
             /,
             ):
         '''
@@ -105,7 +117,7 @@ class Schedule:
                              f'date={date_}, last_run={self.__last_run}')
         heappush(self.events, (date_, entry))
 
-    def run(self, until: date) -> 'Iterable[tuple[date, TimelineUpdateHandler]]':
+    def run(self, until: date) -> 'Iterable[tuple[date, UpdateHandler]]':
         '''
         Run through the events up to a given date.
 
@@ -172,3 +184,15 @@ class Schedule:
 
     def __repr__(self):
         return f'Schedule({sorted(self.events)}, last_run={self.__last_run})'
+
+
+def schedule(*handlers: UpdateHandler):
+    '''
+    Create a schedule from a list of handlers.
+
+    PARAMETERS
+    ----------
+    handlers: UpdateHandler
+        The handlers to add to the schedule.
+    '''
+    return Schedule(handlers)
