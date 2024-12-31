@@ -18,7 +18,7 @@ from pplt.account import AccountValue, AccountUpdate
 if TYPE_CHECKING:
     from pplt.timeline_series import (
         TimelineStep,
-        TimelineUpdateHandler,
+        UpdateHandler,
     )
 
 '''
@@ -60,7 +60,7 @@ class EventSpecifier(Protocol):
     '''
     @abstractmethod
     def __call__(self, name: str, start: date|None=None, /,
-                 **kwargs: Any) -> 'TimelineUpdateHandler':
+                 **kwargs: Any) -> 'UpdateHandler':
         '''
         The signature for the user-defined event functions, after applying
         the decorator but before being configured onto the schedule.
@@ -83,7 +83,7 @@ class EventSpecifier(Protocol):
     __name__: str
 
 
-class Wrapper(tl.TimelineUpdateHandler):
+class Wrapper(tl.UpdateHandler):
     '''
     A wrapper for the user-supplied function that adds metadata, including
     scheduling information, and adapts it to the TimelineUpdateHandler protocol.
@@ -239,7 +239,7 @@ def event(period: tuple[int, PeriodUnit]|None=None,
 
         def for_account(name: str, start: date|str|None=None, /,
                         period: tuple[int, PeriodUnit]|None = outer_period,
-                        **kwargs: Any) -> 'TimelineUpdateHandler':
+                        **kwargs: Any) -> 'UpdateHandler':
             start = parse_month(start) if start else next_month()
 
             if isinstance(period, tuple):
@@ -290,7 +290,7 @@ class TransactionSpecifier(Protocol):
     '''
     @abstractmethod
     def __call__(self, from_: str, to_: str, start: date|None=None, /,
-                 **kwargs: Any) -> 'TimelineUpdateHandler':
+                 **kwargs: Any) -> 'UpdateHandler':
         '''
         The signature for the user-defined transaction functions, after applying
         the decorator but before being configured onto the schedule.
@@ -405,7 +405,7 @@ def transaction(period: tuple[int, PeriodUnit]|None=None,
         def for_accounts(from_: str, to_: str, start: date|str|None=None, /,
                         amount: float|AccountValue = 0.0,
                         period: tuple[int, PeriodUnit]|None = outer_period,
-                        **kwargs: Any) -> 'TimelineUpdateHandler':
+                        **kwargs: Any) -> 'UpdateHandler':
             start = parse_month(start) if start else next_month()
             if isinstance(period, tuple):
                 n, units = period

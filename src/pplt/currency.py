@@ -28,6 +28,13 @@ type CurrencyCode = Literal[
 ISO-4217 currency codes
 '''
 
+def valid_currency_code(code: str) -> CurrencyCode:
+    if code not in CURRENCIES:
+        raise ValueError(f"Invalid currency code: {code}")
+    return code
+
+def get_currency(code: str) -> 'Currency':
+    return CURRENCIES[valid_currency_code(code)]
 
 @dataclass
 class Currency:

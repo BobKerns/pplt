@@ -9,7 +9,7 @@ from pplt.account import AccountValue
 from pplt.interest_utils import monthly_rate
 from pplt.decorators import event
 
-@event(description='{rate:0.3f}% APR')
+@event(description='{rate:0.2f}% APR')
 def interest(date_: date, state: AccountValue, /,
             rate: float,
             **kwargs: Any):

@@ -7,6 +7,10 @@ from datetime import date, timedelta
 from itertools import islice
 from types import NoneType
 
+type Month = str
+'''
+A month string in the form 'yy/mm'.
+'''
 
 DAYS_PER_MONTH = (31,28,31,30,31,30,31,31,30,31,30,31)
 def days_per_month(date_: date|int):

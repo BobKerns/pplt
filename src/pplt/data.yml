@@ -1,11 +1,20 @@
 ---
 name: Bank
 type: account
-balance: 1000.0
+balance: 100000.0
 ---
-name: Bank-interest
+name: Mortgage
+type: account
+balance: 100000.0
+---
+id: Bank-interest
 type: interest
 account: Bank
-rate: 0.08
-period: (1, month)
-
+rate:
+  percent: 8.0
+---
+id: Mortgage-interest
+type: interest
+account: Mortgage
+rate:
+  percent: 3.85

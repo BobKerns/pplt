@@ -10,6 +10,14 @@ from pplt.dates import parse_month
 
 type PeriodUnit = Literal['day', 'week', 'month', 'quarter', 'year']
 
+def valid_period_unit(unit: str) -> PeriodUnit:
+    '''
+    Validate a period unit.
+    '''
+    if unit not in ('day', 'week', 'month', 'quarter', 'year'):
+        raise ValueError(f'Invalid period unit: {unit}')
+    return unit
+
 @dataclass
 class Period:
     '''

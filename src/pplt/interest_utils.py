@@ -12,7 +12,23 @@ from contextlib import suppress
 from datetime import datetime, date
 
 from pplt.dates import parse_month
+from pplt.period import PeriodUnit
 
+def apr(rate: float, period: PeriodUnit):
+    match period:
+        case 'day':
+            exp = 365.25
+        case 'week':
+            exp = 365.25 / 7
+        case 'month':
+            exp = 12
+        case 'quarter':
+            exp = 4
+        case 'year':
+            return rate
+        case _: # type: ignore
+            raise ValueError(f"Invalid period unit: {period}")
+    return (1 + rate) ** exp - 1
 
 def monthly_rate(annual: float):
     """
