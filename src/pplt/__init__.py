@@ -16,6 +16,10 @@ from pplt.decorators import (
     EventSpecifier, TransactionSpecifier,
 )
 from pplt.events import interest
+from pplt.interest_utils import (
+    apr, monthly_rate,
+    daily_rate, quarterly_pct, monthly_pct, daily_pct,
+)
 from pplt.loader import add_loader, Loader, load_scenario
 from pplt.plot import (
     ColorCode, Color, SubPlot,
@@ -41,6 +45,7 @@ __all__ = [
     'AccountUpdate',
     'AccountValue',
     'add_loader',
+    'apr',
     'attr_split',
     'ColorCode',
     'Color',
@@ -48,6 +53,8 @@ __all__ = [
     'Currency',
     'CURRENCIES',
     'CurrentAccountValues',
+    'daily_pct',
+    'daily_rate',
     'days_per_month',
     'DEFAULT_CURRENCY',
     'dict_split',
@@ -57,6 +64,9 @@ __all__ = [
     'interest',
     'Loader',
     'load_scenario',
+    'monthly_pct',
+    'monthly_rate',
+    'multiplot',
     'months',
     'months_str',
     'multiplot',
@@ -65,6 +75,7 @@ __all__ = [
     'parse_month',
     'plt_by_month',
     'plt_timeline',
+    'quarterly_pct',
     'restart',
     'Schedule',
     'series_table',
