@@ -2,14 +2,16 @@
 Test cases for schedule.py
 '''
 
+from collections.abc import Iterator
 from collections import Counter
 from datetime import date
-from typing import Literal
+from typing import Literal, cast
 
 import pytest
 
+from pplt.period import Period
 from pplt.timeline_series import (
-    TimelineStep, TimelineAccountStates, CurrentAccountValues,
+    TimelineStep, TimelineAccountStates, CurrentAccountValues, UpdateHandler,
 )
 from pplt.schedule import Schedule
 from pplt.dates import parse_month
@@ -24,8 +26,13 @@ type ScheduleTest = tuple[ScheduleTestStep, ...]
 class CallHandler:
     counts: Counter[date]
     __name__ = 'CallHandler'
+    dates: Iterator[date]
+    start: date
+    period: Period|None = None
     def __init__(self):
         self.counts = Counter()
+        self.start = date(2022, 1, 1)
+        self.dates = iter([self.start])
     def __call__(self, step: TimelineStep):
         assert isinstance(step, TimelineStep)
         date_ = step.date
@@ -93,10 +100,12 @@ def test_schedule(sequence: ScheduleTest):
             case 'reset':
                 counts.clear()
             case ('add', str(date_)):
-                sch.add(date_, count)
+                count.dates = iter([parse_month(date_)])
+                count.start = parse_month(date_)
+                sch.add(cast(UpdateHandler, count))
             case ('fail', 'add', str(date_)):
                 with pytest.raises(ValueError):
-                    sch.add(date_, count)
+                    sch.add(cast(UpdateHandler, count))
             case ('fail', 'run', str(date_)):
                 with pytest.raises(ValueError):
                     for _, _ in sch.run(parse_month(date_)):

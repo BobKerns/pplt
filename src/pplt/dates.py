@@ -142,6 +142,19 @@ def parse_month(date_: str|date|None=None) -> date:
         case _: # type: ignore
             raise ValueError(f'Invalid date: {date_}.')
 
+def valid_month(date_: str) -> date:
+    '''
+    Validate a month string  of the form 'yy/mm'. (Leading zeroes are not required).
+
+    This exists for consistency with other validation functions in the loader module,
+    but just calls `parse_month()`.
+    RETURNS
+    -------
+    date: date
+        The date object.
+    '''
+    return parse_month(date_)
+
 
 def unparse_month(date: date):
     '''

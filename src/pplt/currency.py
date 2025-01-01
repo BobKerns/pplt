@@ -29,11 +29,17 @@ ISO-4217 currency codes
 '''
 
 def valid_currency_code(code: str) -> CurrencyCode:
+    '''
+    Validate a currency code.
+    '''
     if code not in CURRENCIES:
         raise ValueError(f"Invalid currency code: {code}")
     return code
 
-def get_currency(code: str) -> 'Currency':
+def valid_currency(code: str) -> 'Currency':
+    '''
+    Validate a currency code and return the corresponding `Currency` object.
+    '''
     return CURRENCIES[valid_currency_code(code)]
 
 @dataclass

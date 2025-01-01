@@ -3,16 +3,15 @@ Decorators for the pplt package.
 '''
 
 from abc import abstractmethod
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from datetime import date
 import re
-from types import NoneType
 from typing import Any, Protocol, TYPE_CHECKING, cast
 
 from rich.console import ConsoleRenderable, RenderableType, RichCast
 
 from pplt.dates import next_month, parse_month, unparse_month
-from pplt.period import Periodic, PeriodUnit
+from pplt.period import Period, Periodic, PeriodUnit, valid_period_unit
 import pplt.timeline_series as tl
 from pplt.account import AccountValue, AccountUpdate
 if TYPE_CHECKING:
@@ -52,6 +51,9 @@ class EventHandler(Protocol):
             when adding the event to the schedule.
         '''
         ...
+
+    __name__: str
+    __doc__: str|None
 
 class EventSpecifier(Protocol):
     '''
@@ -237,20 +239,17 @@ def event(period: tuple[int, PeriodUnit]|None=None,
         # This is what you call to create the event handler to add to the schedule.
         outer_period = period
 
-        def for_account(name: str, start: date|str|None=None, /,
+        def for_account(name: str, start: date|str|None=None, /, *,
                         period: tuple[int, PeriodUnit]|None = outer_period,
                         **kwargs: Any) -> 'UpdateHandler':
             start = parse_month(start) if start else next_month()
-
-            if isinstance(period, tuple):
-                n, units = period
-                periodic: Periodic|NoneType = Periodic(start, n, units)
-            else:
-                periodic: Periodic|None = None
-            return EventWrapper(func, for_account, start, periodic,
+            return EventWrapper(func, for_account, start,
+                                parse_periodic(period or outer_period, start),
                                       description,
                                       name,
                                       **kwargs)
+        for_account.__name__ = func.__name__
+        for_account.__doc__ = func.__doc__
         return for_account
     return decorator
 
@@ -282,6 +281,8 @@ class TransactionHandler[V: float|AccountValue](Protocol):
             when adding the event to the schedule.
         '''
         ...
+    __name__: str
+    __doc__: str|None
 
 class TransactionSpecifier(Protocol):
     '''
@@ -345,7 +346,6 @@ class TransactionWrapper(Wrapper):
         self.from_account = from_account
         self.to_account = to_account
         self.args = args
-        print(f'{type(amount)=}')
         self.kwargs = dict(amount=amount, **kwargs)
 
     def __call__(self, step: 'TimelineStep', /) -> None:
@@ -363,6 +363,39 @@ class TransactionWrapper(Wrapper):
         update = self.func(date_, from_value, to_value, **self.kwargs)
         from_account.send(-update)
         to_account.send(update)
+
+
+def parse_periodic(period: Period|Sequence[int|PeriodUnit]|str|None, start: date) -> Periodic|None:
+    '''
+    Create a periodic event.
+
+    PARAMETERS
+    ----------
+    period: tuple[int, PeriodUnit]
+        The period of the event.
+    start: date
+        The start date of the event.
+
+    RETURNS
+    -------
+    Periodic
+        The periodic event.
+    '''
+    match period:
+        case Period():
+            return Periodic(start, period.n, period.unit)
+        case None:
+            return None
+        case str():
+            return Periodic(start, 1, valid_period_unit(period))
+        case tuple()|list(): # type: ignore
+            n, unit = period
+            assert isinstance(unit, str)
+            assert isinstance(n, int)
+            return Periodic(start, n, valid_period_unit(unit))
+        case _: # type: ignore
+            raise ValueError(f'Invalid period: {period} {type(period)}')
+
 
 def transaction(period: tuple[int, PeriodUnit]|None=None,
                 description: str|list[str] = ''):
@@ -402,21 +435,19 @@ def transaction(period: tuple[int, PeriodUnit]|None=None,
     def decorator[V: float|AccountValue](func: TransactionHandler[V]) -> TransactionSpecifier:
         outer_period = period
         # This is what you call to create the event handler to add to the schedule.
-        def for_accounts(from_: str, to_: str, start: date|str|None=None, /,
+        def for_accounts(from_: str, to_: str, start: date|str|None=None, /, *,
                         amount: float|AccountValue = 0.0,
-                        period: tuple[int, PeriodUnit]|None = outer_period,
+                        period: Sequence[int|PeriodUnit]|str|Period|None = None,
                         **kwargs: Any) -> 'UpdateHandler':
             start = parse_month(start) if start else next_month()
-            if isinstance(period, tuple):
-                n, units = period
-                periodic: Periodic|NoneType = Periodic(start, n, units)
-            else:
-                periodic: Periodic|None = None
             if isinstance(amount, float):
                 amount = AccountValue(amount)
-            return TransactionWrapper(func, for_accounts, start, periodic,
+            return TransactionWrapper(func, for_accounts, start,
+                                      parse_periodic(period or outer_period, start),
                                       description, from_, to_,
                                       amount=amount,
                                       **kwargs)
+        for_accounts.__name__ = func.__name__
+        for_accounts.__doc__ = func.__doc__
         return for_accounts
     return decorator

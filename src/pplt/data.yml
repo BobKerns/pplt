@@ -1,20 +1,30 @@
----
+
 name: Bank
 type: account
-balance: 100000.0
+amount: 1000000.00
 ---
 name: Mortgage
 type: account
-balance: 100000.0
+amount: -260000.00
 ---
 id: Bank-interest
 type: interest
 account: Bank
 rate:
-  percent: 8.0
+  percent: 5.0
 ---
 id: Mortgage-interest
 type: interest
 account: Mortgage
 rate:
-  percent: 3.85
+  percent: 3.875
+---
+id: Mortgage-payment
+type: transfer
+from: Bank
+to: Mortgage
+amount: 1744.58
+period:
+  unit: month
+  n: 1
+to_max: 0.0

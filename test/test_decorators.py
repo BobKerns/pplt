@@ -2,7 +2,6 @@
 Test cases for decorators.py
 '''
 
-from typing import Any
 from datetime import date
 from inspect import (
     signature, Parameter
@@ -41,7 +40,7 @@ def test_event_signatures():
         return state * rate
 
     sig1 = signature(interest)
-    assert str(sig1.return_annotation) == 'TimelineUpdateHandler'
+    assert str(sig1.return_annotation) == 'UpdateHandler'
     assert sig1.parameters['name'].annotation is str
     assert sig1.parameters['name'].kind == Parameter.POSITIONAL_ONLY
     assert sig1.parameters['name'].kind == Parameter.POSITIONAL_ONLY
@@ -101,7 +100,7 @@ def test_transaction():
         return amount
 
     sig1 = signature(transfer)
-    assert str(sig1.return_annotation) == 'TimelineUpdateHandler'
+    assert str(sig1.return_annotation) == 'UpdateHandler'
     params = list(sig1.parameters)
     assert sig1.parameters[params[0]].annotation is str
     assert sig1.parameters[params[0]].kind == Parameter.POSITIONAL_ONLY
@@ -109,8 +108,9 @@ def test_transaction():
     assert sig1.parameters[params[1]].kind == Parameter.POSITIONAL_ONLY
     assert sig1.parameters[params[2]].annotation == date|str|None
     assert sig1.parameters[params[2]].kind == Parameter.POSITIONAL_ONLY
-    assert sig1.parameters[params[3]].annotation == Any
-    assert sig1.parameters[params[3]].kind == Parameter.VAR_KEYWORD
+    assert sig1.parameters[params[3]].annotation == float | AccountValue
+    assert sig1.parameters[params[3]].kind == Parameter.KEYWORD_ONLY
+    assert sig1.parameters[params[4]].kind == Parameter.KEYWORD_ONLY
 
     f2 = transfer('account1', 'account2', amount=0.01)
     sig2 = signature(f2)
