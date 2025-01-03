@@ -175,7 +175,8 @@ class EventWrapper(Wrapper):
             case str():
                 raise ValueError(f'Invalid update: {update} for event')
             case _:
-                account.send(float(update))
+                nbalence= account.send(float(update))
+                step.transactions.append((self.account_name, self, update, nbalence))
 
 RE_VAR_REF = re.compile(r'^\{(\w+)\}$')
 def format_cell(spec: str|list[str], /, *args: Any, **kwargs: Any,) -> RenderableType|list[RenderableType]:
@@ -361,8 +362,10 @@ class TransactionWrapper(Wrapper):
         to_account = step.states[self.to_account]
         to_value = step.values[self.to_account]
         update = self.func(date_, from_value, to_value, **self.kwargs)
-        from_account.send(-update)
-        to_account.send(update)
+        nbalence = from_account.send(-update)
+        step.transactions.append((self.from_account, self, -update, nbalence))
+        nbalence = to_account.send(update)
+        step.transactions.append((self.to_account, self, update, nbalence))
 
 
 def parse_periodic(period: Period|Sequence[int|PeriodUnit]|str|None, start: date) -> Periodic|None:

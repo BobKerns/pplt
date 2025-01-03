@@ -39,6 +39,7 @@ class ScheduleEntry:
             self.dates = iter(handler.period)
         else:
             self.dates = iter([handler.start])
+        self.start = next(self.dates)
         self.id = next(_counter) if id is None else id
 
     def __eq__(self, other: Any):
@@ -59,7 +60,7 @@ class ScheduleEntry:
         return ScheduleEntry(self.handler, self.id)
 
     def __repr__(self):
-        return f'HandlerEntry({self.handler}, {self.id})'
+        return f'{type(self).__name__}({self.handler}, {self.id})'
 
 class Schedule:
     '''
@@ -82,11 +83,13 @@ class Schedule:
 
     def __init__(self, events: Iterable[UpdateHandler]|Iterable[tuple[date, ScheduleEntry]]=(), /, _heap: bool=False):
         if _heap:
-            self.__events = [(date_, entry.copy()) for date_, entry in cast(Iterable[tuple[date, ScheduleEntry]], events)]
-            heapify(self.__events)
+            self.__events = events
             self.__last_run = None
             return
-        _events = [(handler.start, ScheduleEntry(handler)) for handler in cast(Iterable[UpdateHandler], events)]
+        _events = [
+            (handler.start, ScheduleEntry(handler))
+            for handler in cast(Iterable[UpdateHandler], events)
+        ]
         heapify(_events)
         self.__events = _events
         self.__last_run = None
@@ -95,7 +98,10 @@ class Schedule:
         '''
         Return a copy of the schedule.
         '''
-        events = [(date_, entry.copy()) for date_, entry in self.events]
+        events = [
+            (date_, entry.copy())
+            for date_, entry in self.events
+        ]
         return Schedule(events, _heap=True)
 
     def add(self,

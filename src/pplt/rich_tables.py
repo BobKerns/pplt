@@ -3,11 +3,11 @@ Terminal table printer
 '''
 
 import sys
-from collections.abc import Collection, Iterable
+from collections.abc import Collection, Iterable, Iterator, Callable
 from contextlib import suppress
 from datetime import date
 from itertools import chain, count, repeat, tee, islice
-from typing import Any, cast, overload
+from typing import Any, cast, overload, TYPE_CHECKING
 
 import pandas as pd
 
@@ -17,8 +17,10 @@ from rich.pretty import install as install_rich
 from rich.protocol import is_renderable
 
 from pplt.dates import next_month, parse_end, parse_month
-from pplt.timeline_series import Timeline, TimelineSeries
-from pplt.utils import take, attr_split, dict_split
+from pplt.utils import skip, take, attr_split, dict_split
+import pplt.timeline_series as tl
+if TYPE_CHECKING:
+    from pplt.timeline_series import Timeline, TimelineSeries
 
 RICH_TABLE=True
 '''
@@ -40,12 +42,17 @@ if RICH_TABLE:
             return rich_hook(val)
         sys.displayhook = wrap_displayhook
 
+type TableContinuation = Callable[[], 'Table']|Iterator['Table']
 
-def table(series: TimelineSeries|Timeline,
+next_=next
+
+def table(series: 'TimelineSeries|Timeline',
           include: Collection[str]=(),
           exclude: Collection[str]=(),
+          start: int=0,
           end: int|str|date=12,
           formats: Iterable[str]=(),
+          next: TableContinuation|None=None,
           ):
     """
     Print a `Table` of values.
@@ -87,19 +94,23 @@ def table(series: TimelineSeries|Timeline,
         The labels to exclude.
     end: int|str|datetime
         The ending date, or the number of months to print.
+    start: int
+        The number of months to skip
+    next: TableContinuation|None
+        A function or `Iterable` giving the next `Table`
     """
     match series:
-        case Timeline():
+        case tl.Timeline():
             series = iter(series)
-        case TimelineSeries():
+        case tl.TimelineSeries():
             pass
     peek, header = tee(series, 2)
     date_, values = attr_split(header, 'date', 'values')
-    start = next_month()
+    start_month = next_month()
     with suppress(StopIteration):
-        peek = next(peek)
-        start = peek.date
-    end = parse_end(start, end)
+        peek = next_(peek)
+        start_month = peek.date
+    end = parse_end(start_month, end)
     values = dict_split(values)
     include = include or values.keys()
     to_show = {
@@ -107,41 +118,60 @@ def table(series: TimelineSeries|Timeline,
         for k, v in values.items()
         if k in include and k not in exclude
     }
+    labels= ('Month', *to_show.keys())
+    formats = chain(('%y/%m',), formats)
+    if next is None:
+        def next():
+            return series_table(islice(date_, 0, end), *to_show.values(),
+                                labels=labels,
+                                formats=formats,
+                                end=end,
+                                next=next)
+
     # Limit the date range in case the series has no other
     # values to show.
-    return series_table(islice(date_, 0, end), *to_show.values(),
-                labels=('Month', *to_show.keys()),
-                formats=chain(('%y/%m',), formats),
+    return series_table(islice(date_, start, end), *to_show.values(),
+                labels=labels,
+                formats=formats,
                 end=end,
+                next=next,
             )
 
 def series_table(*series: Iterable[float],
                 labels: Collection[str]=(),
                 formats: Iterable[str] = (),
+                start: int=0,
                 end: int=12,
-                 ):
+                next: TableContinuation|None=None,
+            ):
     '''
     Print a table of values from multiple series.
     '''
     return tuple_table(zip(*series),
                     labels=labels,
                     formats=formats,
+                    start=start,
                     end=end,
-                    )
+                    next=next,
+                )
 
 def dataframe_table(df: pd.DataFrame,
+                    start: int=0,
                     end: int=12,
                     labels: Collection[str]=(),
                     formats: Iterable[str] = (),
-                    ):
+                    next: TableContinuation|None=None,
+                ):
     '''
     Print a table of values from a DataFrame.
     '''
     return tuple_table(df.itertuples(index=False, name=None),
                     labels=labels or df.columns,
                     formats=formats,
+                    start=start,
                     end=end,
-                    )
+                    next=next,
+                )
 
 type SingleRowIndex = int|str|date
 type RowSlice = slice[int|None,int|None,int|None]\
@@ -236,7 +266,16 @@ def extract_rows(labels: list[str],
             ]
 
         case _: # type: ignore
-            raise ValueError(f'Invalid column index: {cols}')
+            raise ValueError(f'Invalid row index: {rows}')
+
+def next_table(next_: TableContinuation|None) -> Callable[[], 'Table']:
+    match next:
+        case Iterator():
+            return lambda: next(next_)
+        case Callable():
+            return next_
+        case None:
+            return None
 
 class Table:
     '''
@@ -294,18 +333,29 @@ class Table:
 
     values: list[tuple[Any, ...]]
 
+    __next: Callable[[], 'Table']|None
+    @property
+    def next(self):
+        if not self.__next:
+            return 'No more'
+        return self.__next()
+
     def __init__(self,
-                 labels: list[str],
-                 formats: list[str],
-                 ncols: int,
-                 values: list[tuple[Any, ...]],
-                 end: int|str|date):
+                labels: list[str],
+                formats: list[str],
+                ncols: int,
+                values: list[tuple[Any, ...]],
+                end: int|str|date,
+                /, *,
+                next: TableContinuation|None=None,
+            ):
         self.ncols = ncols
         self.values = values
         self.end = end
         series = (f'Series-{i}' for i in count(len(labels)+1))
         self.labels = list(islice(chain(labels, series), 0, ncols))
         self.formats = list(islice(chain(formats, repeat('>,.2f')), 0, ncols))
+        self.__next = next_table(next)
 
     def __eq__(self, other: Any):
         if not isinstance(other, Table):
@@ -400,17 +450,19 @@ class Table:
     def __repr__(self):
         return f'<Table of {','.join(self.labels)} {len(self)} rows>'
 
-def tuple_table(values: Iterable[tuple[float, ...]], /,
-                    end: int=12,
-                    labels: Collection[str]=(),
-                    formats: Iterable[str] = (),
-                    ):
+def tuple_table(values: Iterable[tuple[Any, ...]], /, *,
+                start: int=0,
+                end: int=12,
+                labels: Collection[str]=(),
+                formats: Iterable[str] = (),
+                next: TableContinuation|None=None,
+            ) -> Table:
     '''
     Print a table of values from multiple series packaged as an iterable of tuples.
 
     PARAMETERS
     ----------
-    values: Iterable[tuple[float, ...]]
+    values: Iterable[tuple[Any, ...]]
         An iterable of tuples of values.
     end: int
         The number of months to print.
@@ -420,6 +472,8 @@ def tuple_table(values: Iterable[tuple[float, ...]], /,
         The format strings for the columns. Defaults to '>,.2f'.
     prefixes: Iterable[str]
         The prefixes for the columns. Defaults to '$'.
+    next: TableContinuation|None
+        Function or `Iterator` giving the next table of values.
     '''
 
     # extend the sequence of labels if needed.
@@ -435,6 +489,7 @@ def tuple_table(values: Iterable[tuple[float, ...]], /,
 
     formats_ = chain(formats, repeat('>,.2f'))
     values_ = iter(values)
+    skip(start, values_)
     tbl_values = take(end, values_)
 
     # Limit the number of rows
@@ -444,4 +499,7 @@ def tuple_table(values: Iterable[tuple[float, ...]], /,
 
     labels_ = take(ncols, labels_)
     formats = take(ncols, formats_)
-    return Table(labels_, formats, ncols, tbl_values, end)
+    if next is None:
+        def next():
+            return tuple_table(values_, end=end, labels=labels, formats=formats)
+    return Table(labels_, formats, ncols, tbl_values, end, next=next)

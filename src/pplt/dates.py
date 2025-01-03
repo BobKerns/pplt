@@ -7,6 +7,8 @@ from datetime import date, timedelta
 from itertools import islice
 from types import NoneType
 
+from pplt.utils import skip
+
 type Month = str
 '''
 A month string in the form 'yy/mm'.
@@ -142,6 +144,7 @@ def parse_month(date_: str|date|None=None) -> date:
         case _: # type: ignore
             raise ValueError(f'Invalid date: {date_}.')
 
+
 def valid_month(date_: str) -> date:
     '''
     Validate a month string  of the form 'yy/mm'. (Leading zeroes are not required).
@@ -197,3 +200,12 @@ def parse_end(start: date|str, end: int|str|date) -> int:
             return years * 12 + months
         case _: # type: ignore
             raise ValueError('Invalid end value.')
+
+
+def month_plus(month: str|date, n: int) -> date:
+    '''
+    Return the month n months after the given month.
+    '''
+    series = months(month)
+    skip(n, series)
+    return next(series)
