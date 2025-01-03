@@ -2,7 +2,6 @@
 Test cases for decorators.py
 '''
 
-from typing import Any
 from datetime import date
 from inspect import (
     signature, Parameter
@@ -41,7 +40,7 @@ def test_event_signatures():
         return state * rate
 
     sig1 = signature(interest)
-    assert str(sig1.return_annotation) == 'TimelineUpdateHandler'
+    assert str(sig1.return_annotation) == 'UpdateHandler'
     assert sig1.parameters['name'].annotation is str
     assert sig1.parameters['name'].kind == Parameter.POSITIONAL_ONLY
     assert sig1.parameters['name'].kind == Parameter.POSITIONAL_ONLY
@@ -91,7 +90,7 @@ def test_event_invocation_early():
     accounts, step = make_step('account')
     f2 = interest('account', parse_month('21/2'), rate=0.10)
     f2(step)
-    assert accounts['account'].balance == 1000.00
+    assert accounts['account'].amount == 1000.00
 
 
 def test_transaction():
@@ -101,7 +100,7 @@ def test_transaction():
         return amount
 
     sig1 = signature(transfer)
-    assert str(sig1.return_annotation) == 'TimelineUpdateHandler'
+    assert str(sig1.return_annotation) == 'UpdateHandler'
     params = list(sig1.parameters)
     assert sig1.parameters[params[0]].annotation is str
     assert sig1.parameters[params[0]].kind == Parameter.POSITIONAL_ONLY
@@ -109,8 +108,9 @@ def test_transaction():
     assert sig1.parameters[params[1]].kind == Parameter.POSITIONAL_ONLY
     assert sig1.parameters[params[2]].annotation == date|str|None
     assert sig1.parameters[params[2]].kind == Parameter.POSITIONAL_ONLY
-    assert sig1.parameters[params[3]].annotation == Any
-    assert sig1.parameters[params[3]].kind == Parameter.VAR_KEYWORD
+    assert sig1.parameters[params[3]].annotation == float | AccountValue
+    assert sig1.parameters[params[3]].kind == Parameter.KEYWORD_ONLY
+    assert sig1.parameters[params[4]].kind == Parameter.KEYWORD_ONLY
 
     f2 = transfer('account1', 'account2', amount=0.01)
     sig2 = signature(f2)
@@ -146,5 +146,5 @@ def test_transaction_invocation_early():
     accounts, step = make_step('account1', 'account2')
     f2 = transfer('account1', 'account2', parse_month('21/2'), amount=100.00)
     f2(step)
-    assert accounts['account1'].balance == 1000.00
-    assert accounts['account2'].balance == 1000.00
+    assert accounts['account1'].amount == 1000.00
+    assert accounts['account2'].amount == 1000.00

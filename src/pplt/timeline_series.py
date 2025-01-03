@@ -1,26 +1,28 @@
 '''
-A `Timeline` represents a financial future, with a series of `AccountState` objects
+A `Timeline` represents a financial future, with a series of `AccountValue` objects
 for each account, on a monthly basis.
 '''
 
 from abc import abstractmethod
-from collections.abc import Callable, Generator
-from dataclasses import dataclass
+from collections.abc import Callable, Generator, Sequence
+from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, Protocol, cast, runtime_checkable
 from weakref import WeakKeyDictionary
 
 from rich.console import RenderableType
+from rich.table import Table as RichTable
 
 from pplt.account import Account, AccountUpdate, AccountValue
-from pplt.dates import days_per_month, parse_month
+from pplt.dates import days_per_month, parse_month, next_month, month_plus
 from pplt.period import Periodic
+from pplt.rich_tables import tuple_table
 if TYPE_CHECKING:
     import pplt.schedule as sch
 
 type TimelineAccountState = Generator[AccountValue, AccountUpdate, NoReturn]
 '''
-A generator of `AccountState` objects, representing the state of an account.
+A generator of `AccountValue` objects, representing the state of an account.
 The generator accepts updates to the account, and yields the updated state.
 '''
 
@@ -28,7 +30,7 @@ type TimelineAccountStates = dict[str, TimelineAccountState]
 '''
 The state of the accounts in the timeline.
 
-The keys are the account names, and the values are generators of `AccountState`.
+The keys are the account names, and the values are generators of `AccountValue`.
 The generators accept send() calls with updates to the accounts, while next()
 returns the updated state.
 '''
@@ -48,6 +50,7 @@ class TimelineStep:
     schedule: 'sch.Schedule'
     states: TimelineAccountStates
     values: CurrentAccountValues
+    transactions: list[tuple[str, 'UpdateHandler', AccountUpdate, AccountValue]] = field(default_factory=list)
 
 class TimelineSeries(Generator[TimelineStep, None, NoReturn]):
     '''
@@ -140,7 +143,6 @@ class Timeline:
             while True:
                 states =  {k: next(v) for k, v in accounts.items()}
                 step = TimelineStep(date_, schedule, accounts, states)
-                yield step
                 # Note that we don't update the account states after each event.
                 # Updating the states would introduce order-dependence, and also
                 # deviate from how the real world usually works, with a reconciliation
@@ -151,6 +153,7 @@ class Timeline:
                     if step_date > step.date:
                         step = TimelineStep(step_date, schedule, accounts, states)
                     event(step)
+                yield step
                 date_ = date_ + timedelta(days=days_per_month(date_))
         # Make it a bit easier to recognize series generator.
         # We can't override the __class__ or add attributes.
@@ -163,6 +166,69 @@ class Timeline:
 
         Timeline._series[it] = self
         return it
+
+    @property
+    def transactions(self) -> Generator[tuple[date, str, UpdateHandler, AccountUpdate, AccountValue], None, None]:
+        '''
+        Collect transactions from the events, and apply them to the accounts.
+
+        PARAMETERS
+        ----------
+        step: Timeline
+            The timeline to process.
+        '''
+
+        for step in self:
+            date_ = step.date
+            for (name, handler, update, balance) in step.transactions:
+                yield (date_, name, handler, update, balance)
+
+    def transaction_table(self, /, *,
+                          start: int=0,
+                          end: int=12,
+                          accounts: Sequence[str]=(),
+                          handlers: Sequence[str]=()
+                          ) -> RenderableType:
+        def cell(value: RenderableType|Sequence[RenderableType]):
+            match value:
+                case str():
+                    return value
+                case Sequence():
+                    grid = RichTable.grid(expand=True)
+                    for i in range(len(value)):
+                        match i:
+                            case 0:
+                                grid.add_column(justify='left')
+                            case _ if i == len(value) - 1:
+                                grid.add_column(justify='right')
+                            case _:
+                                grid.add_column(justify='center')
+                    grid.add_row(*value)
+                    return grid
+                case _: # type: ignore
+                    raise ValueError(f'Invalid value: {value}')
+        def series(start_month: date, end_month: date):
+            for d, a, h, v, b in self.transactions:
+                if d < start_month:
+                    continue
+                if d >= end_month:
+                    break
+                if ((not accounts or a in accounts)
+                    and
+                    ((not handlers or h.__name__ in handlers))):
+                    yield d, a, h.__name__, cell(h.description), v, b
+        def table(start: int, end: int):
+            start_month: date = month_plus(next_month(), start)
+            end_month = month_plus(next_month(), end)
+            entries = list(series(start_month, end_month))
+            if not entries:
+                return "No entries"
+            return tuple_table(entries,
+                            labels=('Date', 'Account', 'Handler', 'Details', 'Amount', 'Balance'),
+                            end=len(entries),
+                            next=lambda: table(end, end+(end-start))
+            )
+        return table(start, end)
 
 
 def timeline(schedule: 'sch.Schedule|None'=None,

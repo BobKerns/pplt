@@ -39,7 +39,9 @@ myplot
 mypy
 mywrap
 nakfas
+nbalence
 ncols
+ndigits
 Nuevo
 nuevos
 Paʻanga
