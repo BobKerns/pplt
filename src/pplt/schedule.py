@@ -117,10 +117,10 @@ class Schedule:
             The handler for the event.
         '''
         entry = ScheduleEntry(handler)
-        date_ = next(entry.dates)
+        date_ = entry.start
         if self.__last_run and date_ <= self.__last_run:
             raise ValueError('Can only add future dates. '
-                             f'date={date_}, last_run={self.__last_run}')
+                                f'date={date_}, last_run={self.__last_run}')
         heappush(self.events, (date_, entry))
 
     def run(self, until: date) -> 'Iterable[tuple[date, UpdateHandler]]':
