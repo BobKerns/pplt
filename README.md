@@ -46,9 +46,13 @@ dependencies).
 
 ## Set up VS Code
 
-The Python extension version 2024.22.1 has a new bug that breaks test discovery (it hangs forever). Until it is fixed, we need to downgrade to 2024.22.0.
+The Python extension version 2024.22.1 has a new bug that breaks test discovery (it hangs forever). Until it is fixed, we need to downgrade to 2024.22.0, or upgrade to the pre-release version.
 
 [Instructions can be found here.](https://github.com/microsoft/vscode-python/issues/24656#issuecomment-2561238479)
+
+You will need to be sure VSCode is using the virtual environment. If not, click on the enviornment shown when viewing any python file, and select it.
+
+![alt text](image-1.png)
 
 ## What is here so far
 
