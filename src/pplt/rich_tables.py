@@ -341,12 +341,12 @@ class Table:
         return self.__next()
 
     def __init__(self,
+                 /, *,
                 labels: list[str],
                 formats: list[str],
                 ncols: int,
                 values: list[tuple[Any, ...]],
                 end: int|str|date,
-                /, *,
                 next: TableContinuation|None=None,
             ):
         self.ncols = ncols
@@ -502,4 +502,10 @@ def tuple_table(values: Iterable[tuple[Any, ...]], /, *,
     if next is None:
         def next():
             return tuple_table(values_, end=end, labels=labels, formats=formats)
-    return Table(labels_, formats, ncols, tbl_values, end, next=next)
+    return Table(
+        labels=labels_,
+        formats=formats,
+        ncols=ncols,
+        values=tbl_values,
+        end=end,
+        next=next)
