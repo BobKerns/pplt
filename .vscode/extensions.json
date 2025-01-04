@@ -1,7 +1,6 @@
 {
     "recommendations": [
         "ms-python.python",
-        "wraith13.bracket-lens",
         "pustelto.bracketeer",
         "mikestead.dotenv",
         "janisdd.vscode-edit-csv",
