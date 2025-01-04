@@ -1,3 +1,0 @@
-# Foo
-
-Short markdown file
