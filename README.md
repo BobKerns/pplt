@@ -31,8 +31,7 @@ Installing 3.13 will not uninstall or replace earlier versions.
 pip install -c constraints.txt uv
 ```
 
-`uv` is replaces `pip` and `poetry`. It is MUCH faster and has other advantages
-as well.
+`uv` replaces `pip` and `poetry`. It is MUCH faster and has other advantages as well.
 
 ## Set up virtual environment and install dependencies
 
@@ -61,6 +60,8 @@ This project has a number of useful tools that will let us explore without getti
 
 * Generator/Timeline utilities. These form the heart of the engine. Accounts generate their monthly state, and the timeline collect these states, generating a monthly snapshot. It's not a complete implementation of the simulation steps—I saved some for you. But it's enough to see how the system needs to work.
 
+* Scenario files. A scenario file defines a set of accounts and events/transactions on those accounts. It is a YAML file; a loadable example is in [data.yml](data.yml).
+
 * Time-series plotting and tables. These work in terminal windows, and make it easy to understand the results.
 
 ```text
@@ -82,6 +83,22 @@ Month Mortgage  Fidelity
 ```
 
 ![alt text](image.png)
+
+You can do `_.next` to access the next increment of a table.
+
+Other tables:
+
+```python
+tl.schedule.table
+```
+
+This shows the scheduled events and transactions.
+
+```python
+tl.transaction_table()
+```
+
+This shows the individual events and transactions over time. You can supply `end=`_n_ to indicate the table should end after _n_ months. You can filter with `accounts=` and `handlers=` arguments to make it easier to look at the operations on a subset of accounts or event/transaction handlers.
 
 ## Theory of operation
 
@@ -125,7 +142,5 @@ For experimenting, we can use a shortcut to creating an account, and just supply
 tl = timeline(Mortgage=-100000, Fidelity=100000)
 tl.schedule.add(interest('Mortgage', rate=0.0385, period=(1, 'month')))
 tl.schedule.add(interest('Fidelity', rate=0.10, period=(1, 'month')))
-
-
-
+tl.schedule.add(transaction('Fidelity', 'Mortgage', amount=1000, period=(1, 'month')))
 ```
