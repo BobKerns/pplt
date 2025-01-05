@@ -50,9 +50,9 @@ The Python extension version 2024.22.1 has a new bug that breaks test discovery 
 
 [Instructions can be found here.](https://github.com/microsoft/vscode-python/issues/24656#issuecomment-2561238479)
 
-You will need to be sure VSCode is using the virtual environment. If not, click on the enviornment shown when viewing any python file, and select it.
+You will need to be sure VSCode is using the virtual environment. If not, click on the environment shown in the lower right corner when viewing any python file, and select it.
 
-![alt text](image-1.png)
+![alt text](vscode_venv.png)
 
 ## What is here so far
 
@@ -64,7 +64,7 @@ This project has a number of useful tools that will let us explore without getti
 
 * Generator/Timeline utilities. These form the heart of the engine. Accounts generate their monthly state, and the timeline collect these states, generating a monthly snapshot. It's not a complete implementation of the simulation steps—I saved some for you. But it's enough to see how the system needs to work.
 
-* Scenario files. A scenario file defines a set of accounts and events/transactions on those accounts. It is a YAML file; a loadable example is in [data.yml](data.yml).
+* Scenario files. A scenario file defines a set of accounts and events/transactions on those accounts. It is a YAML file; a loadable example is in [data.yml](data.yml). An example of extending a scenario by importing an existing scenario and modifying some of its attributes may be found in [alt-data.yml](alt-data.yl).
 
 * Time-series plotting and tables. These work in terminal windows, and make it easy to understand the results.
 
@@ -86,7 +86,7 @@ Month Mortgage  Fidelity
 25/12 $-103,523 $ 109,129
 ```
 
-![alt text](image.png)
+![alt text](plot.png)
 
 You can do `_.next` to access the next increment of a table.
 

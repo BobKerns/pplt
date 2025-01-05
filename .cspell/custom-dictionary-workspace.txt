@@ -18,6 +18,7 @@ direnv
 Djiboutian
 envrc
 FCFA
+genid
 hline
 hryvnias
 httpx

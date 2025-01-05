@@ -1,0 +1,11 @@
+# Import data.yml, and override the rate percent to 3.0
+# Note that the id is the same as the imported data, so it will override the imported data
+# The imported data is defined in data.yml Also note that only the entire top-level attributes
+# are overridden, so the entire `rate` attribute is overridden, not just the `percent` attribute.
+type: import
+file: data.yml
+---
+id: Bank-interest
+rate:
+  percent: 3.0
+---
