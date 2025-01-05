@@ -21,7 +21,7 @@ from pplt.interest_utils import (
     apr, monthly_rate,
     daily_rate, quarterly_pct, monthly_pct, daily_pct,
 )
-from pplt.loader import add_loader, Loader, load_scenario
+from pplt.loader import add_loader, Loader, load_scenario, load_scenario_yaml
 from pplt.period import Period, Periodic, PeriodUnit, valid_period_unit
 from pplt.plot import (
     ColorCode, Color, SubPlot,
@@ -66,6 +66,7 @@ __all__ = [
     'interest',
     'Loader',
     'load_scenario',
+    'load_scenario_yaml',
     'monthly_pct',
     'monthly_rate',
     'multiplot',
