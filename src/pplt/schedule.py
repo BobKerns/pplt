@@ -83,7 +83,7 @@ class Schedule:
 
     def __init__(self, events: Iterable[UpdateHandler]|Iterable[tuple[date, ScheduleEntry]]=(), /, _heap: bool=False):
         if _heap:
-            self.__events = events
+            self.__events = list(cast(Iterable[tuple[date, ScheduleEntry]], events))
             self.__last_run = None
             return
         _events = [

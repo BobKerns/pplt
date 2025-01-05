@@ -42,7 +42,7 @@ if RICH_TABLE:
             return rich_hook(val)
         sys.displayhook = wrap_displayhook
 
-type TableContinuation = Callable[[], 'Table']|Iterator['Table']
+type TableContinuation = Callable[[], 'RenderableType|str']|Iterator['RenderableType|str']
 
 next_=next
 
@@ -52,7 +52,7 @@ def table(series: 'TimelineSeries|Timeline',
           start: int=0,
           end: int|str|date=12,
           formats: Iterable[str]=(),
-          next: TableContinuation|None=None,
+          next: TableContinuation|None=None, # type: ignore
           ):
     """
     Print a `Table` of values.
@@ -268,8 +268,8 @@ def extract_rows(labels: list[str],
         case _: # type: ignore
             raise ValueError(f'Invalid row index: {rows}')
 
-def next_table(next_: TableContinuation|None) -> Callable[[], 'Table']:
-    match next:
+def next_table(next_: TableContinuation|None) -> TableContinuation|None:
+    match next_:
         case Iterator():
             return lambda: next(next_)
         case Callable():
@@ -333,12 +333,16 @@ class Table:
 
     values: list[tuple[Any, ...]]
 
-    __next: Callable[[], 'Table']|None
+    __next: TableContinuation|None
     @property
     def next(self):
-        if not self.__next:
-            return 'No more'
-        return self.__next()
+        match self.__next:
+            case None:
+                return 'No more'
+            case Callable():
+                return self.__next()
+            case Iterator():
+                return next(self.__next)
 
     def __init__(self,
                  /, *,
@@ -455,7 +459,8 @@ def tuple_table(values: Iterable[tuple[Any, ...]], /, *,
                 end: int=12,
                 labels: Collection[str]=(),
                 formats: Iterable[str] = (),
-                next: TableContinuation|None=None,
+                ncols: int|None = None,
+                next: TableContinuation|None=None, # type: ignore
             ) -> Table:
     '''
     Print a table of values from multiple series packaged as an iterable of tuples.
@@ -472,6 +477,8 @@ def tuple_table(values: Iterable[tuple[Any, ...]], /, *,
         The format strings for the columns. Defaults to '>,.2f'.
     prefixes: Iterable[str]
         The prefixes for the columns. Defaults to '$'.
+    ncols: int|None
+        The number of columns. If None, the number of columns is determined by the first row (which requires non-zero rows).
     next: TableContinuation|None
         Function or `Iterator` giving the next table of values.
     '''
@@ -490,12 +497,13 @@ def tuple_table(values: Iterable[tuple[Any, ...]], /, *,
     formats_ = chain(formats, repeat('>,.2f'))
     values_ = iter(values)
     skip(start, values_)
+    # Limit the number of rows
     tbl_values = take(end, values_)
 
-    # Limit the number of rows
-    # Get the first row to determine the number of columns.
-    first = tbl_values[0]
-    ncols = len(first)
+    if ncols is None:
+        # Get the first row to determine the number of columns.
+        first = tbl_values[0]
+        ncols = len(first)
 
     labels_ = take(ncols, labels_)
     formats = take(ncols, formats_)

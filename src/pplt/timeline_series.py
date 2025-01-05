@@ -179,6 +179,8 @@ class Timeline:
         '''
 
         for step in self:
+            if not self.schedule.events:
+                break
             date_ = step.date
             for (name, handler, update, balance) in step.transactions:
                 yield (date_, name, handler, update, balance)
@@ -188,7 +190,7 @@ class Timeline:
                           end: int=12,
                           accounts: Sequence[str]=(),
                           handlers: Sequence[str]=()
-                          ) -> RenderableType:
+                          ) -> RenderableType|str:
         def cell(value: RenderableType|Sequence[RenderableType]):
             match value:
                 case str():
@@ -217,14 +219,13 @@ class Timeline:
                     and
                     ((not handlers or h.__name__ in handlers))):
                     yield d, a, h.__name__, cell(h.description), v, b
-        def table(start: int, end: int):
+        def table(start: int, end: int) -> RenderableType:
             start_month: date = month_plus(next_month(), start)
             end_month = month_plus(next_month(), end)
             entries = list(series(start_month, end_month))
-            if not entries:
-                return "No entries"
             return tuple_table(entries,
                             labels=('Date', 'Account', 'Handler', 'Details', 'Amount', 'Balance'),
+                            ncols=6,
                             end=len(entries),
                             next=lambda: table(end, end+(end-start))
             )
