@@ -24,4 +24,5 @@ dependencies = [
     "pandas >= 2.2.3",
     "requests >= 2.32.3",
     "pypdf >= 5.1.0",
+    "httpmdhtml>=0.1.4",
 ]
