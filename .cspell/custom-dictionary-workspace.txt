@@ -16,11 +16,13 @@ dataframe
 dataframes
 direnv
 Djiboutian
+docstrings
 envrc
 FCFA
 genid
 hline
 hryvnias
+httpmdhtml
 httpx
 islice
 isort

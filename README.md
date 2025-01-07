@@ -44,6 +44,19 @@ source .venv/bin/activate
 (That's it. `uv sync` creates the virtual environment as well as installing
 dependencies).
 
+## Reading documentation
+
+Once you have activated the virtual environment, you can `cd` into the `pplt` project directory and run two web servers. This is optional; you can get the same information from inside VS Code.
+
+```bash
+python -m httpmdhtml.server &
+python -m pydoc -p 8088 pplt
+```
+
+The first displays .md files (such as this README.md).
+
+The second displays formatted docstrings for the code.
+
 ## Set up VS Code
 
 The Python extension version 2024.22.1 has a new bug that breaks test discovery (it hangs forever). Until it is fixed, we need to downgrade to 2024.22.0, or upgrade to the pre-release version.
@@ -105,6 +118,11 @@ tl.transaction_table()
 This shows the individual events and transactions over time. You can supply `end=`_n_ to indicate the table should end after _n_ months. You can filter with `accounts=` and `handlers=` arguments to make it easier to look at the operations on a subset of accounts or event/transaction handlers.
 
 ## Theory of operation
+
+Two [AI-generated diagrams](https://gitdiagram.com/bobkerns/pplt) of the system.
+
+![Overview diagram](overview.png)
+![Overview Diagram](overview2.png)
 
 The basic concepts should be familiar:
 
