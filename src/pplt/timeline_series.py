@@ -224,7 +224,7 @@ class Timeline:
             end_month = month_plus(next_month(), end)
             entries = list(series(start_month, end_month))
             return tuple_table(entries,
-                            labels=('Date', 'Account', 'Handler', 'Details', 'Amount', 'Balance'),
+                            labels=('Month', 'Account', 'Handler', 'Details', 'Amount', 'Balance'),
                             ncols=6,
                             end=len(entries),
                             next=lambda: table(end, end+(end-start))

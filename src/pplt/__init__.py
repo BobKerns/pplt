@@ -7,6 +7,7 @@ from pplt.account import (
     DEFAULT_CURRENCY,
 )
 from pplt.currency import Currency, CURRENCIES
+from pplt.data_tables import LookupTable
 from pplt.dates import (
     parse_month, next_month, months, days_per_month,
     months_str, unparse_month, parse_end,
@@ -28,7 +29,7 @@ from pplt.plot import (
     plt_timeline, plt_by_month, multiplot, subplot,
 )
 from pplt.schedule import Schedule, ScheduleEntry
-from pplt.rich_tables import Table, table, series_table, tuple_table
+from pplt.rich_tables import Table, table, series_table, tuple_table, dataframe_table
 from pplt.timeline_series import (
     Timeline, TimelineStep, TimelineSeries,
     TimelineAccountStates, TimelineAccountState,
@@ -57,6 +58,7 @@ __all__ = [
     'CurrentAccountValues',
     'daily_pct',
     'daily_rate',
+    'dataframe_table',
     'days_per_month',
     'DEFAULT_CURRENCY',
     'dict_split',
@@ -67,6 +69,7 @@ __all__ = [
     'Loader',
     'load_scenario',
     'load_scenario_yaml',
+    'LookupTable',
     'monthly_pct',
     'monthly_rate',
     'multiplot',
