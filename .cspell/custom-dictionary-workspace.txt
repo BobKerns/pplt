@@ -24,6 +24,7 @@ hline
 hryvnias
 httpmdhtml
 httpx
+iloc
 islice
 isort
 itertools
