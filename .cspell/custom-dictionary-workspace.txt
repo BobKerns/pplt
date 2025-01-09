@@ -53,6 +53,7 @@ pecentage
 plotext
 plotsize
 pltext
+pplot
 pplt
 procs
 pypdf

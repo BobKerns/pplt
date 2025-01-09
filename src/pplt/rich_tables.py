@@ -39,6 +39,10 @@ if RICH_TABLE:
         def wrap_displayhook(val: Any):
             if type(val).__module__ == 'xonsh.procs.pipelines':
                 return old_hook(val)
+            import pplt.plot as pplot
+            if isinstance(val, pplot.Figure):
+                val.show()
+                return
             return rich_hook(val)
         sys.displayhook = wrap_displayhook
 
