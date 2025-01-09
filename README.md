@@ -38,11 +38,13 @@ pip install -c constraints.txt uv
 ```bash
 cd pplt
 uv sync
+# Install the pplt package in "editable" mode
+uv pip install -e .
+# Activate the virtual environment.
 source .venv/bin/activate
 ```
 
-(That's it. `uv sync` creates the virtual environment as well as installing
-dependencies).
+That's it. `uv sync` creates the virtual environment as well as installing dependencies. Installing pplt in editable mode means we can make changes and reload.
 
 ## Reading documentation
 
