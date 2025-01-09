@@ -121,9 +121,6 @@ This shows the individual events and transactions over time. You can supply `end
 
 Two [AI-generated diagrams](https://gitdiagram.com/bobkerns/pplt) of the system.
 
-![Overview diagram](overview.png)
-![Overview Diagram](overview2.png)
-
 The basic concepts should be familiar:
 
 * _Accounts_: We divide these into assets (+ value) and liabilities (- value). It's possible for an asset to become temporarily negative or a liability to become positive, but we usually won't reclassify them if this happens.
