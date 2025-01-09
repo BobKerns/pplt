@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import date
 from itertools import chain, count, islice, tee
 from math import ceil, floor
-from typing import Any, Literal, Protocol, cast
+from typing import Any, Literal, Protocol, cast, runtime_checkable
 
 import plotext as plt_
 
@@ -72,6 +72,7 @@ def color_series():
     return (c % 256 for c in count(112, 13))
 
 
+@runtime_checkable
 class Figure(Protocol):
     def clear_figure(self):
         ...
@@ -236,7 +237,8 @@ def multiplot(*subplots: SubPlot,
         plt.show()
         if wait:
             input()
-
+        else:
+            return plt
 
 def plt_by_month(
         *series: Iterable[float],
