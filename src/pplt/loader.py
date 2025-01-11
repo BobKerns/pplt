@@ -64,6 +64,7 @@ class LoaderEntry[T: str](TypedDict):
     It must be the name of a loader function in the `LOADERS` dictionary,
     or the special type `import`.
     '''
+    categories: NotRequired[list[str]]
 
 class LoaderImportEntry(LoaderEntry[Literal['import']]):
     '''
@@ -153,9 +154,15 @@ def load_rate(entry: LoaderRate) -> float:
 class LoaderAccount(LoaderEntry[Literal['account']], LoaderValue_):
     name: str
 
+def categories[T: str](entry: LoaderEntry[T]) -> list[str]:
+    return cast(list[str], entry.get('keys', None) or [])
+
 def load_account(entry: LoaderAccount) -> Account:
     value = load_value(entry)
-    return Account(entry['name'], value)
+    cat = categories(entry)
+    return Account(entry['name'],
+                   value,
+                   categories=cat)
 
 # Fails to recognize the LoaderValue_ in the inheritance
 add_loader('account', load_account) # type: ignore
@@ -180,7 +187,7 @@ class LoaderInterest(LoaderEntry[Literal['interest']]):
 def load_interest(entry: LoaderInterest) -> UpdateHandler:
     rate = load_rate(entry['rate'])
     start = load_start(entry)
-    return interest(entry['account'], start, rate=rate*100)
+    return interest(entry['account'], start, rate=rate*100, keys=categories(entry))
 
 add_loader('interest', load_interest) # type: ignore
 
@@ -210,7 +217,8 @@ def load_transfer(entry: LoaderTransfer) -> UpdateHandler:
                     amount=amount,
                     period=period,
                     from_min=from_min,
-                    to_max=to_max)
+                    to_max=to_max,
+                    keys=categories(entry))
 
 add_loader('transfer', load_transfer) # type: ignore
 
@@ -263,7 +271,7 @@ def valid_loader_entry(entry: LoaderEntry[str]|None) -> LoaderEntry[str]|None:
             print(f'Missing required key {k} for {type_}', file=sys.stderr)
             return None
     # Check that there are no unknown keys
-    for k in entry.keys():
+    for k in entry:
         if k not in p0.__required_keys__ and k not in p0.__optional_keys__: # type: ignore
             print(f'Unknown key {k} for {type_}', file=sys.stderr)
             return None

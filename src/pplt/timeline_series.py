@@ -90,6 +90,7 @@ class UpdateHandler(Protocol):
     fn: Callable[..., Any]
     accounts: RenderableType|list[RenderableType]
     description: RenderableType|list[RenderableType]
+    categories: list[str]
 
 if TYPE_CHECKING:
     import pplt.schedule as sch
