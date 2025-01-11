@@ -165,3 +165,7 @@ tl.schedule.add(interest('Mortgage', rate=0.0385, period=(1, 'month')))
 tl.schedule.add(interest('Fidelity', rate=0.10, period=(1, 'month')))
 tl.schedule.add(transaction('Fidelity', 'Mortgage', amount=1000, period=(1, 'month')))
 ```
+
+## Scenario files
+
+Scenarios 
