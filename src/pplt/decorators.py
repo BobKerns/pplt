@@ -102,7 +102,7 @@ class Wrapper(tl.UpdateHandler):
     __name__: str
     __qualname__: str
     __module__: str
-    categories: list[str]
+    tags: list[str]
 
     def __init__(self, func: Callable[..., Any],
                  fn: Callable[..., Any],
@@ -112,7 +112,7 @@ class Wrapper(tl.UpdateHandler):
                  description: str|list[str],
                  /,
                  *args: Any,
-                 categories: list[str]|None = None,
+                 tags: list[str]|None = None,
                  **kwargs: Any,
                  ) -> None:
         self.func = func
@@ -123,7 +123,7 @@ class Wrapper(tl.UpdateHandler):
         self.fn = fn
         self.start = start
         self.period = period
-        self.categories = categories or []
+        self.tags = tags or []
         self.accounts = format_cell(accounts, *args, **kwargs)
         self.description = format_cell(description, *args, **kwargs)
 
@@ -155,11 +155,11 @@ class EventWrapper(Wrapper):
                     description: str|list[str],
                     account_name: str,
                     /,
-                    categories: list[str]|None = None,
+                    tags: list[str]|None = None,
                     **kwargs: dict[str, Any]) -> None:
             super().__init__(func, fn, start, period, account_name, description,
                              account_name,
-                             categories=categories,
+                             tags=tags,
                              **kwargs)
             self.account_name = account_name
             self.args = kwargs
@@ -248,14 +248,14 @@ def event(period: tuple[int, PeriodUnit]|None=None,
 
         def for_account(name: str, start: date|str|None=None, /, *,
                         period: tuple[int, PeriodUnit]|None = outer_period,
-                        categories: list[str]|None = None,
+                        tags: list[str]|None = None,
                         **kwargs: Any) -> 'UpdateHandler':
             start = parse_month(start) if start else next_month()
             return EventWrapper(func, for_account, start,
                                 parse_periodic(period or outer_period, start),
                                 description,
                                 name,
-                                categories=categories,
+                                tags=tags,
                                 **kwargs)
         for_account.__name__ = func.__name__
         for_account.__doc__ = func.__doc__
@@ -347,14 +347,14 @@ class TransactionWrapper(Wrapper):
                     /,
                     *args: Any,
                     amount: AccountValue|float = 0.0,
-                    categories: list[str]|None = None,
+                    tags: list[str]|None = None,
                     **kwargs: Any) -> None:
         accounts = [from_account, '→ ', to_account]
         amount = AccountValue(amount) if isinstance(amount, (float, int)) else amount
         super().__init__(func, fn, start, period, accounts, description,
                          from_account, to_account,
                          amount=amount,
-                         categories=categories,
+                         tags=tags,
                          **kwargs)
         self.from_account = from_account
         self.to_account = to_account
@@ -453,7 +453,7 @@ def transaction(period: tuple[int, PeriodUnit]|None=None,
         def for_accounts(from_: str, to_: str, start: date|str|None=None, /, *,
                         amount: float|AccountValue = 0.0,
                         period: Sequence[int|PeriodUnit]|str|Period|None = None,
-                        categories: list[str]|None = None,
+                        tags: list[str]|None = None,
                         **kwargs: Any) -> 'UpdateHandler':
             start = parse_month(start) if start else next_month()
             if isinstance(amount, float):
@@ -462,7 +462,7 @@ def transaction(period: tuple[int, PeriodUnit]|None=None,
                                     parse_periodic(period or outer_period, start),
                                     description, from_, to_,
                                     amount=amount,
-                                    categories=categories,
+                                    tags=tags,
                                     **kwargs)
         for_accounts.__name__ = func.__name__
         for_accounts.__doc__ = func.__doc__

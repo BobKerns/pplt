@@ -64,7 +64,7 @@ class LoaderEntry[T: str](TypedDict):
     It must be the name of a loader function in the `LOADERS` dictionary,
     or the special type `import`.
     '''
-    categories: NotRequired[list[str]]
+    tags: NotRequired[list[str]]
 
 class LoaderImportEntry(LoaderEntry[Literal['import']]):
     '''
@@ -154,15 +154,15 @@ def load_rate(entry: LoaderRate) -> float:
 class LoaderAccount(LoaderEntry[Literal['account']], LoaderValue_):
     name: str
 
-def categories[T: str](entry: LoaderEntry[T]) -> list[str]:
-    return cast(list[str], entry.get('keys', None) or [])
+def tags[T: str](entry: LoaderEntry[T]) -> list[str]:
+    return  entry.get('tags', None) or []
 
 def load_account(entry: LoaderAccount) -> Account:
     value = load_value(entry)
-    cat = categories(entry)
+    tag_list = tags(entry)
     return Account(entry['name'],
                    value,
-                   categories=cat)
+                   tags=tag_list)
 
 # Fails to recognize the LoaderValue_ in the inheritance
 add_loader('account', load_account) # type: ignore
@@ -187,7 +187,7 @@ class LoaderInterest(LoaderEntry[Literal['interest']]):
 def load_interest(entry: LoaderInterest) -> UpdateHandler:
     rate = load_rate(entry['rate'])
     start = load_start(entry)
-    return interest(entry['account'], start, rate=rate*100, keys=categories(entry))
+    return interest(entry['account'], start, rate=rate*100, tags=tags(entry))
 
 add_loader('interest', load_interest) # type: ignore
 
@@ -218,7 +218,7 @@ def load_transfer(entry: LoaderTransfer) -> UpdateHandler:
                     period=period,
                     from_min=from_min,
                     to_max=to_max,
-                    keys=categories(entry))
+                    keys=tags(entry))
 
 add_loader('transfer', load_transfer) # type: ignore
 

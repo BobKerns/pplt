@@ -90,7 +90,7 @@ class UpdateHandler(Protocol):
     fn: Callable[..., Any]
     accounts: RenderableType|list[RenderableType]
     description: RenderableType|list[RenderableType]
-    categories: list[str]
+    tags: list[str]
 
 if TYPE_CHECKING:
     import pplt.schedule as sch
@@ -231,6 +231,15 @@ class Timeline:
                             next=lambda: table(end, end+(end-start))
             )
         return table(start, end)
+
+    def __getitem__(self, key: str) -> list[Account]:
+        try:
+            return [self.accounts[key]]
+        except KeyError:
+            return [
+                a for a in self.accounts.values()
+                if key in a.tags
+            ]
 
 
 def timeline(schedule: 'sch.Schedule|None'=None,
