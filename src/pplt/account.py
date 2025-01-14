@@ -241,14 +241,14 @@ class Account(AccountValue):
     `float`.
     '''
     name: str
-    categories: list[str]
+    tags: list[str]
 
     @overload
     def __init__(self,
                  name: str,
                  value: AccountValue,
                  /, *,
-                 categories: list[str]|None=None,
+                 tags: list[str]|None=None,
                  ) -> None: ...
     @overload
     def __init__(self,
@@ -257,7 +257,7 @@ class Account(AccountValue):
                  status: AccountStatus='open',
                  currency: Currency=DEFAULT_CURRENCY,
                  /, *,
-                 categories: list[str]|None=None,
+                 tags: list[str]|None=None,
                  ) -> None: ...
     def __init__(self,
                  name: str,
@@ -265,13 +265,13 @@ class Account(AccountValue):
                  status: AccountStatus='open',
                  currency: Currency=DEFAULT_CURRENCY,
                  /, *,
-                 categories: list[str]|None=None,
+                 tags: list[str]|None=None,
                  ):
         if isinstance(amount, AccountValue):
             amount, status, currency = amount.amount, amount.status, amount.currency
         super().__init__(amount, status, currency)
         self.name = name
-        self.categories = categories or []
+        self.tags = tags or []
 
     def __iter__(self)  -> Generator[AccountValue, AccountUpdate, NoReturn]:
         amount = self.amount

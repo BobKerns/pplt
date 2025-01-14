@@ -38,7 +38,7 @@ from pplt.timeline_series import (
 )
 from pplt.transaction import transfer
 from pplt.utils import (
-    console, take, skip, dict_split, attr_split, unzip,
+    console, take, skip, dict_split, attr_split, unzip, sum_iterators,
 
 )
 
@@ -94,6 +94,7 @@ __all__ = [
     'skip',
     'SubPlot',
     'subplot',
+    'sum_iterators',
     'Table',
     'table',
     'take',

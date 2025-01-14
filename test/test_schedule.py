@@ -11,7 +11,7 @@ import pytest
 
 from pplt.period import Period
 from pplt.timeline_series import (
-    TimelineStep, TimelineAccountStates, CurrentAccountValues, UpdateHandler,
+    TimelineStep, TimelineAccountStates, CurrentAccountValues, UpdateHandler, Timeline,
 )
 from pplt.schedule import Schedule
 from pplt.dates import parse_month
@@ -92,7 +92,7 @@ def test_schedule(sequence: ScheduleTest):
                     parse_month(d): c
                     for d, c in expected.items()
                 }
-                step = TimelineStep(date_, sch, states, values)
+                step = TimelineStep(date_, timeline=cast(Timeline, None), schedule=sch, states=states, values=values)
                 for step_date, f in sch.run(date_):
                     assert step_date == date_
                     f(step)

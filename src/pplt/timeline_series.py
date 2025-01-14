@@ -4,14 +4,17 @@ for each account, on a monthly basis.
 '''
 
 from abc import abstractmethod
-from collections.abc import Callable, Generator, Sequence
+from collections.abc import Callable, Generator, Mapping, Sequence, Iterator
 from dataclasses import dataclass, field
 from datetime import date, timedelta
-from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, Protocol, cast, runtime_checkable
+from typing import (
+    TYPE_CHECKING, Any, ClassVar, NoReturn, Protocol, cast, overload, runtime_checkable,
+)
 from weakref import WeakKeyDictionary
 
 from rich.console import RenderableType
 from rich.table import Table as RichTable
+
 
 from pplt.account import Account, AccountUpdate, AccountValue
 from pplt.dates import days_per_month, parse_month, next_month, month_plus
@@ -47,10 +50,73 @@ class TimelineStep:
     and the values of the accounts.
     '''
     date: date
+    timeline: 'Timeline'
     schedule: 'sch.Schedule'
     states: TimelineAccountStates
     values: CurrentAccountValues
     transactions: list[tuple[str, 'UpdateHandler', AccountUpdate, AccountValue]] = field(default_factory=list)
+
+    def group(self, *keys: str) -> dict[str, dict[str, AccountValue]]:
+        '''
+        Get the value of an account.
+
+        PARAMETERS
+        ----------
+        keys: str
+            The account names or tags
+
+        RETURNS
+        -------
+        value: AccountValue
+            The value of the account.
+        '''
+        accounts = {
+            k:[a.name for a in self.timeline[k]]
+            for k in keys
+        }
+        return {
+            k:{a: self.values[a] for a in accounts[k]}
+            for k in keys
+        }
+
+        return {
+            v for k, v in self.values.items()
+            if key in self.values[k].tags
+        }
+
+    @overload
+    def __getitem__(self, key: str) -> AccountValue: pass
+    @overload
+    def __getitem__(self, key: tuple[str,...]) -> Mapping[str,AccountValue]: pass
+    def __getitem__(self, key: str|tuple[str,...]) -> AccountValue|Mapping[str,AccountValue]:
+        '''
+        Get the value of an account.
+
+        PARAMETERS
+        ----------
+        key: str
+            The account name or tag or
+
+        RETURNS
+        -------
+        value: AccountValue
+            The value of the account.
+        '''
+
+        if isinstance(key, str):
+            try:
+                return self.values[key]
+            except KeyError:
+                key = (key,)
+        groups = self.group(*key)
+        values = {
+            k: cast(AccountValue, sum(g.values()))
+            for k, g in groups.items()
+        }
+        if len (key) == 1:
+            return values[key[0]]
+        return values
+
 
 class TimelineSeries(Generator[TimelineStep, None, NoReturn]):
     '''
@@ -90,7 +156,7 @@ class UpdateHandler(Protocol):
     fn: Callable[..., Any]
     accounts: RenderableType|list[RenderableType]
     description: RenderableType|list[RenderableType]
-    categories: list[str]
+    tags: list[str]
 
 if TYPE_CHECKING:
     import pplt.schedule as sch
@@ -143,7 +209,7 @@ class Timeline:
             schedule = self.schedule.copy()
             while True:
                 states =  {k: next(v) for k, v in accounts.items()}
-                step = TimelineStep(date_, schedule, accounts, states)
+                step = TimelineStep(date_, self, schedule, accounts, states)
                 # Note that we don't update the account states after each event.
                 # Updating the states would introduce order-dependence, and also
                 # deviate from how the real world usually works, with a reconciliation
@@ -152,7 +218,7 @@ class Timeline:
                 for step_date, event in schedule.run(date_):
                     assert step_date <= date_
                     if step_date > step.date:
-                        step = TimelineStep(step_date, schedule, accounts, states)
+                        step = TimelineStep(step_date, self, schedule, accounts, states)
                     event(step)
                 yield step
                 date_ = date_ + timedelta(days=days_per_month(date_))
@@ -231,6 +297,56 @@ class Timeline:
                             next=lambda: table(end, end+(end-start))
             )
         return table(start, end)
+
+    def __getitem__(self, key: str) -> list[Account]:
+        try:
+            return [self.accounts[key]]
+        except KeyError:
+            return [
+                a for a in self.accounts.values()
+                if key in a.tags
+            ]
+
+    def group(self, *keys: str) -> Iterator[Mapping[str, Mapping[str, AccountValue]]]:
+        '''
+        Group the accounts by the keys.
+
+        PARAMETERS
+        ----------
+        keys: Sequence[str]
+            The keys to group by.
+
+        RETURNS
+        -------
+        groups: dict[str, Iterator[AccountValue]]
+            The groups of accounts.
+        '''
+        for state in self:
+            yield state.group(*keys)
+
+    def sums(self, *keys: str) -> Iterator[TimelineStep]:
+        '''
+        Group the accounts by the keys.
+
+        PARAMETERS
+        ----------
+        keys: Sequence[str]
+            The keys to group by.
+
+        RETURNS
+        -------
+        sums: dict[str, AccountValue]
+            The sums groups of accounts.
+        '''
+        for s in self:
+            v = s[keys]
+            if not isinstance(v, dict):
+                v = {keys[0]: v}
+            yield TimelineStep(date=s.date,
+                               timeline=self,
+                               schedule=self.schedule,
+                               states=s.states,
+                               values=cast(CurrentAccountValues, v))
 
 
 def timeline(schedule: 'sch.Schedule|None'=None,

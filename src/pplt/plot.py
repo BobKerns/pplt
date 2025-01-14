@@ -45,7 +45,7 @@ def choose_stride(ymin: float, ymax: float):
         r = floor(yrange / 0.0001)*0.00001
     if r == 0:
         r = yrange / 10
-    return r
+    return r or 1.0
 
 
 type ColorCode = Literal[
