@@ -8,6 +8,9 @@ from typing import Any, cast, overload
 
 from rich.console import Console
 
+import pplt.account as acct
+from pplt.currency import Currency
+
 console = Console()
 
 def take[T](n: int, x: Iterator[T]) -> list[T]:
@@ -91,6 +94,31 @@ def attr_split(joined: Iterator[Any], *attrs: str):
         except StopIteration:
             pass
     return [split(key, d) for key, d in zip(attrs, tee(joined, len(attrs)))]
+
+
+def sum_iterators[T: float|acct.AccountValue](*its: Iterable[T]) -> Iterator[T]:
+    """
+    Merge multiple iterators into a single iterator.
+    """
+    c: Currency|None = None
+    try:
+        iters = [iter(it) for it in its]
+        while True:
+            sum: float = 0.0
+            for it in iters:
+                v = next(it)
+                if isinstance(v, acct.AccountValue):
+                    if c is None:
+                        c = v.currency
+                    elif c != v.currency:
+                        raise ValueError("Currencies must be the same. Got: {c} and {v.currency}")
+                sum = sum + v
+            if c is None:
+                yield cast(T, sum)
+            else:
+                yield cast(T, acct.AccountValue(sum, 'open', c))
+    except StopIteration:
+        pass
 
 
 @overload

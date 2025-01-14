@@ -3,6 +3,7 @@ Test cases for decorators.py
 '''
 
 from datetime import date
+from typing import cast
 from inspect import (
     signature, Parameter
 )
@@ -13,7 +14,7 @@ from pplt.dates import parse_month
 from pplt.decorators import event, transaction
 from pplt.account import AccountValue, Account
 from pplt.schedule import Schedule
-from pplt.timeline_series import TimelineStep, TimelineAccountStates
+from pplt.timeline_series import Timeline, TimelineStep, TimelineAccountStates
 
 
 def make_step(*keys: str):
@@ -25,6 +26,7 @@ def make_step(*keys: str):
     values = {k: next(a) for k, a in states.items()}
     step = TimelineStep(parse_month('21/1'),
                         schedule=Schedule(),
+                        timeline=cast(Timeline, None),
                         states=states,
                         values=values)
     return accounts, step
